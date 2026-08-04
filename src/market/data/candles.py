@@ -14,10 +14,55 @@ from typing import Any
 
 import httpx
 
-from market.domain.models import Candle, D
+from market.domain.models import Candle, D, Quote
 
 
 COINBASE_CANDLES = "https://api.exchange.coinbase.com/products/BTC-USD/candles"
+COINBASE_TICKER = "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
+COINBASE_STATS = "https://api.exchange.coinbase.com/products/BTC-USD/stats"
+
+
+def fetch_coinbase_ticker(client: httpx.Client | None = None) -> Quote:
+    """Live BTC-USD top-of-book from public ticker."""
+    from market.domain.models import utcnow
+
+    own = client is None
+    client = client or httpx.Client(timeout=15.0)
+    try:
+        r = client.get(COINBASE_TICKER, headers={"User-Agent": "market-bot/0.1"})
+        r.raise_for_status()
+        data = r.json()
+        bid = D(str(data.get("bid") or data["price"]))
+        ask = D(str(data.get("ask") or data["price"]))
+        if bid <= 0 or ask <= 0:
+            px = D(str(data["price"]))
+            bid = px
+            ask = px
+        if ask < bid:
+            bid, ask = ask, bid
+        return Quote(symbol="BTC", bid=bid, ask=ask, ts=utcnow())
+    finally:
+        if own:
+            client.close()
+
+
+def fetch_live_mark() -> tuple[Quote, dict]:
+    """Return quote + raw ticker dict for logging."""
+    from market.domain.models import utcnow
+
+    own_client = httpx.Client(timeout=15.0)
+    try:
+        r = own_client.get(COINBASE_TICKER, headers={"User-Agent": "market-bot/0.1"})
+        r.raise_for_status()
+        raw = r.json()
+        bid = D(str(raw.get("bid") or raw["price"]))
+        ask = D(str(raw.get("ask") or raw["price"]))
+        if ask < bid:
+            bid, ask = ask, bid
+        q = Quote(symbol="BTC", bid=bid, ask=ask, ts=utcnow())
+        return q, raw
+    finally:
+        own_client.close()
 
 
 def _parse_coinbase_row(row: list[Any]) -> Candle:

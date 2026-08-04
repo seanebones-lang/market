@@ -129,21 +129,54 @@ class TradingLoop:
         self.stats.allowed += 1
         out_intent = decision.intent
 
-        if self.config.mode in {Mode.LIVE_DRY, Mode.PAPER}:
-            # shadow only
+        if self.config.mode == Mode.LIVE_DRY:
+            # shadow only — no sim fill, no broker submit
             self.acks_ledger.append(
                 {
                     "type": "shadow_ack",
                     "ts": now.isoformat(),
                     "intent": out_intent.model_dump(mode="json"),
                     "mode": self.config.mode.value,
+                    "mark": str(quote.mid),
                 }
             )
             result["submitted"] = False
+            result["mark"] = str(quote.mid)
             self._reconcile_and_log(now)
             return result
 
-        if self.config.mode in {Mode.SIM, Mode.LIVE} and self.submit_enabled:
+        # sim + paper: fill on SimBroker (paper uses live marks when live_data on)
+        # live: real broker (not wired)
+        if self.config.mode in {Mode.SIM, Mode.PAPER} and self.submit_enabled:
+            ack = self.broker.place_order(out_intent)
+            self.stats.submits += 1
+            self.submitted_client_ids.append(out_intent.client_order_id)
+            self.risk_state.last_order_ts = now
+            self.risk_state.order_timestamps.append(now)
+            self.acks_ledger.append(
+                {
+                    "type": "ack",
+                    "ts": now.isoformat(),
+                    "ack": ack.model_dump(mode="json"),
+                    "mode": self.config.mode.value,
+                    "mark": str(quote.mid),
+                }
+            )
+            result["submitted"] = True
+            result["ack_status"] = ack.status.value
+            result["mark"] = str(quote.mid)
+            for f in self.broker.get_fills():
+                if f.client_order_id == out_intent.client_order_id:
+                    self.stats.fills += 1
+                    self.fills_ledger.append(
+                        {
+                            "type": "fill",
+                            "ts": now.isoformat(),
+                            "fill": f.model_dump(mode="json"),
+                            "mode": self.config.mode.value,
+                        }
+                    )
+        elif self.config.mode == Mode.LIVE and self.submit_enabled:
             ack = self.broker.place_order(out_intent)
             self.stats.submits += 1
             self.submitted_client_ids.append(out_intent.client_order_id)
@@ -158,13 +191,6 @@ class TradingLoop:
             )
             result["submitted"] = True
             result["ack_status"] = ack.status.value
-            # journal new fills
-            for f in self.broker.get_fills():
-                if f.client_order_id == out_intent.client_order_id:
-                    self.stats.fills += 1
-                    self.fills_ledger.append(
-                        {"type": "fill", "ts": now.isoformat(), "fill": f.model_dump(mode="json")}
-                    )
         else:
             result["submitted"] = False
 
@@ -177,6 +203,8 @@ class TradingLoop:
         sleep_fn: Callable[[float], None] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         demo_prices: bool = True,
+        live_data: bool = False,
+        quote_fn: Callable[[], Any] | None = None,
     ) -> LoopStats:
         sleep_fn = sleep_fn or time.sleep
         now_fn = now_fn or utcnow
@@ -184,8 +212,11 @@ class TradingLoop:
         i = 0
         base_now = now_fn()
         while n is None or i < n:
-            if demo_prices and hasattr(self.broker, "set_quote"):
-                # synthetic path: grind up then dump so slow_trend can fire
+            if live_data and quote_fn is not None and hasattr(self.broker, "set_quote"):
+                q = quote_fn()
+                self.broker.set_quote(q.bid, q.ask)
+                tick_now = now_fn()
+            elif demo_prices and hasattr(self.broker, "set_quote"):
                 half = 15 if n is None else max(n // 2, 1)
                 if i < half:
                     mid = Decimal("100000") + Decimal(i) * Decimal("250")
@@ -194,8 +225,9 @@ class TradingLoop:
                         i - half
                     ) * Decimal("400")
                 self.broker.set_quote(mid - Decimal("5"), mid + Decimal("5"))
-            # hour-step clock so candle timestamps are unique
-            tick_now = base_now + timedelta(hours=i)
+                tick_now = base_now + timedelta(hours=i)
+            else:
+                tick_now = now_fn()
             self.tick(now=tick_now)
             i += 1
             if n is None or i < n:
@@ -271,3 +303,48 @@ def build_sim_loop(config: AppConfig, root: Path | None = None) -> TradingLoop:
         heartbeat=Heartbeat(data / "state" / "heartbeat.json", max_age_seconds=120),
         candles=flat,
     )
+
+
+def build_paper_live_loop(
+    config: AppConfig,
+    root: Path | None = None,
+    starting_usd: Decimal = Decimal("1000"),
+    candle_batches: int = 2,
+) -> tuple[TradingLoop, dict]:
+    """Paper loop seeded with live Coinbase candles + live top-of-book marks."""
+    from market.data.candles import fetch_coinbase_candles, fetch_live_mark
+
+    root = root or Path.cwd()
+    data = root / config.data_dir
+    quote, raw = fetch_live_mark()
+    candles = fetch_coinbase_candles(granularity=3600, limit_batches=candle_batches)
+    broker = SimBroker(
+        usd=starting_usd,
+        btc=Decimal("0"),
+        bid=quote.bid,
+        ask=quote.ask,
+        fee_bps=Decimal("5"),
+        slippage_bps=Decimal("2"),
+    )
+    paper_cfg = config.model_copy(update={"mode": Mode.PAPER})
+    loop = TradingLoop(
+        config=paper_cfg,
+        broker=broker,
+        strategy=SlowTrendV1(config.strategy),
+        risk=RiskGate(config.risk),
+        intents_ledger=JsonlLedger(data / "ledger" / "paper_intents.jsonl"),
+        acks_ledger=JsonlLedger(data / "ledger" / "paper_acks.jsonl"),
+        fills_ledger=JsonlLedger(data / "ledger" / "paper_fills.jsonl"),
+        freeze=FreezeControl(data / "state" / "FREEZE"),
+        heartbeat=Heartbeat(data / "state" / "heartbeat.json", max_age_seconds=300),
+        candles=list(candles),
+    )
+    meta = {
+        "quote": quote,
+        "raw_ticker": raw,
+        "candles": len(candles),
+        "candle_start": candles[0].ts.isoformat() if candles else None,
+        "candle_end": candles[-1].ts.isoformat() if candles else None,
+        "last_close": str(candles[-1].close) if candles else None,
+    }
+    return loop, meta

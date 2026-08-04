@@ -17,12 +17,15 @@ cd ~/Desktop/market
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q
 .venv/bin/python -m market run --iterations 40
+.venv/bin/python -m market paper --ticks 5 --sleep 2
 .venv/bin/python -m market run --config config/live-dry.yaml
 .venv/bin/python -m market fetch-candles
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 .venv/bin/python -m market freeze --reason "manual"
 .venv/bin/python -m market unfreeze
 ```
+
+`market paper` = live Coinbase BTC prices + simulated fills. No Robinhood account needed.
 
 Live mode is hard-refused unless `MARKET_RH_LIVE=1` and still aborts until real RH transport exists.
 
