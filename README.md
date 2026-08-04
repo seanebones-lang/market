@@ -9,7 +9,17 @@ Design assumes Robinhood is hostile to bots (no official retail trading API) and
 
 ## Status
 
-Phase 0 — planning + scaffold only. No live orders. No credentials committed.
+Phase 1–2 — domain, risk, slow_trend, SimBroker, ledger, freeze/heartbeat, CLI loop.
+Paper/sim only. No live orders. No credentials committed.
+
+```bash
+cd ~/Desktop/market
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/pytest -q
+.venv/bin/python -m market run --iterations 40
+.venv/bin/python -m market freeze --reason "manual"
+.venv/bin/python -m market unfreeze
+```
 
 ## Docs
 
