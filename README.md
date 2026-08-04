@@ -25,7 +25,19 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m market unfreeze
 ```
 
-`market paper` = live Coinbase BTC prices + simulated fills. No Robinhood account needed.
+## Backtest on actual data
+
+```bash
+# one shot: fetch fresh Coinbase BTC-USD 1h history + backtest + write report
+.venv/bin/python -m market backtest --fetch --batches 5 --cash 1000 --qty 0.001
+
+# reuse cached CSV
+.venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
+
+# reports land in data/backtests/<run_id>/{summary.json,fills.jsonl,equity.jsonl}
+```
+
+Candles are real Coinbase Exchange public BTC-USD bars (not synthetic).
 
 Live mode is hard-refused unless `MARKET_RH_LIVE=1` and still aborts until real RH transport exists.
 

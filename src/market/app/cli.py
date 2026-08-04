@@ -62,13 +62,30 @@ def main(argv: list[str] | None = None) -> int:
     fetch_p.add_argument("--batches", type=int, default=3)
     fetch_p.add_argument("--root", default=".")
 
-    bt_p = sub.add_parser("backtest", help="Run slow_trend backtest on candle CSV")
+    bt_p = sub.add_parser(
+        "backtest",
+        help="Backtest slow_trend on REAL candle data (CSV cache and/or fresh Coinbase fetch)",
+    )
     bt_p.add_argument("--csv", default="data/cache/btc_usd_1h.csv")
     bt_p.add_argument("--root", default=".")
     bt_p.add_argument("--qty", default="0.001")
     bt_p.add_argument("--cash", default="1000")
     bt_p.add_argument("--fast", type=int, default=12)
     bt_p.add_argument("--slow", type=int, default=26)
+    bt_p.add_argument("--fee-bps", default="5", help="Round-trip fee model in bps per fill")
+    bt_p.add_argument(
+        "--fetch",
+        action="store_true",
+        help="Fetch fresh Coinbase BTC-USD candles before backtest (actual market data)",
+    )
+    bt_p.add_argument("--granularity", type=int, default=3600, help="Candle seconds (3600=1h)")
+    bt_p.add_argument("--batches", type=int, default=5, help="Fetch batches (~300 candles each)")
+    bt_p.add_argument(
+        "--out-dir",
+        default="data/backtests",
+        help="Write summary/fills/equity under this dir",
+    )
+    bt_p.add_argument("--run-id", default=None, help="Optional run id (default: timestamp)")
 
     args = parser.parse_args(argv)
 
@@ -97,37 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "backtest":
-        from market.backtest.engine import run_backtest
-        from market.data.candles import load_candles_csv
-        from market.strategy.slow_trend import SlowTrendConfig
-
-        csv_path = Path(args.csv)
-        if not csv_path.is_absolute():
-            csv_path = root / csv_path
-        if not csv_path.exists():
-            console.print(f"[red]missing[/red] {csv_path} — run: market fetch-candles")
-            return 2
-        candles = load_candles_csv(csv_path)
-        cfg = SlowTrendConfig(
-            fast_ema=args.fast,
-            slow_ema=args.slow,
-            order_qty_btc=Decimal(args.qty),
-        )
-        result = run_backtest(
-            candles,
-            starting_usd=Decimal(args.cash),
-            qty_btc=Decimal(args.qty),
-            strategy_cfg=cfg,
-        )
-        console.print(
-            f"bars={len(candles)} fills={len(result.fills)} intents={result.intents} "
-            f"allowed={result.allowed} blocked={result.blocked}"
-        )
-        console.print(
-            f"start_usd={result.starting_usd} end_usd={result.final_usd} "
-            f"pnl={result.realized_pnl_usd}"
-        )
-        return 0
+        return _cmd_backtest(args, root)
 
     if args.cmd == "paper":
         return _cmd_paper(args, root)
@@ -201,6 +188,95 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     return 1
+
+
+def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
+    from datetime import datetime, timezone
+
+    from market.backtest.engine import run_backtest, write_backtest_report
+    from market.data.candles import fetch_coinbase_candles, load_candles_csv, save_candles_csv
+    from market.strategy.slow_trend import SlowTrendConfig
+
+    csv_path = Path(args.csv)
+    if not csv_path.is_absolute():
+        csv_path = root / csv_path
+
+    source = f"csv:{csv_path}"
+    if args.fetch or not csv_path.exists():
+        if not args.fetch and not csv_path.exists():
+            console.print(f"[yellow]no cache[/yellow] {csv_path} — fetching Coinbase…")
+        else:
+            console.print(
+                f"[bold]fetching actual BTC-USD[/bold] granularity={args.granularity}s "
+                f"batches={args.batches}"
+            )
+        candles = fetch_coinbase_candles(
+            granularity=int(args.granularity),
+            limit_batches=int(args.batches),
+        )
+        if not candles:
+            console.print("[red]fetch returned 0 candles[/red]")
+            return 2
+        save_candles_csv(csv_path, candles)
+        source = f"coinbase:BTC-USD:{args.granularity}s"
+        console.print(
+            f"[green]cached[/green] {len(candles)} bars → {csv_path} "
+            f"({candles[0].ts.isoformat()} → {candles[-1].ts.isoformat()})"
+        )
+    else:
+        candles = load_candles_csv(csv_path)
+        console.print(
+            f"loaded {len(candles)} bars from {csv_path} "
+            f"({candles[0].ts.isoformat()} → {candles[-1].ts.isoformat()})"
+        )
+
+    cfg = SlowTrendConfig(
+        fast_ema=int(args.fast),
+        slow_ema=int(args.slow),
+        order_qty_btc=Decimal(args.qty),
+    )
+    result = run_backtest(
+        candles,
+        starting_usd=Decimal(args.cash),
+        qty_btc=Decimal(args.qty),
+        fee_bps=Decimal(args.fee_bps),
+        strategy_cfg=cfg,
+        source=source,
+    )
+
+    run_id = args.run_id or datetime.now(timezone.utc).strftime("bt_%Y%m%dT%H%M%SZ")
+    out_dir = Path(args.out_dir)
+    if not out_dir.is_absolute():
+        out_dir = root / out_dir
+    paths = write_backtest_report(result, out_dir, run_id)
+
+    console.print("[bold]BACKTEST (actual data)[/bold]")
+    console.print(f"source={result.source}")
+    console.print(
+        f"bars={result.bars} range={result.first_ts} → {result.last_ts} "
+        f"strategy=slow_trend {result.fast_ema}/{result.slow_ema}"
+    )
+    console.print(
+        f"fills={len(result.fills)} intents={result.intents} "
+        f"allowed={result.allowed} blocked={result.blocked}"
+    )
+    console.print(
+        f"start_usd={result.starting_usd} end_usd={result.final_usd} "
+        f"pnl={result.realized_pnl_usd} return%={result.return_pct} "
+        f"fees={result.fees_usd} max_dd={result.max_drawdown_usd}"
+    )
+    if result.fills:
+        f0, f1 = result.fills[0], result.fills[-1]
+        console.print(
+            f"first_fill {f0.side.value} {f0.qty_btc}@{f0.price_usd} {f0.ts.isoformat()}"
+        )
+        console.print(
+            f"last_fill  {f1.side.value} {f1.qty_btc}@{f1.price_usd} {f1.ts.isoformat()}"
+        )
+    console.print(f"[green]wrote[/green] {paths['summary']}")
+    console.print(f"       {paths['fills']} ({len(result.fills)} rows)")
+    console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")
+    return 0
 
 
 def _cmd_paper(args: argparse.Namespace, root: Path) -> int:

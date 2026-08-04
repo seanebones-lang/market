@@ -25,6 +25,7 @@ build/
 data/state/
 data/ledger/
 data/cache/
+data/backtests/
 *.session
 cookies.json
 robinhood.pickle
