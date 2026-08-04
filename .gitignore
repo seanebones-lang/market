@@ -1,0 +1,36 @@
+# secrets / local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.secrets/
+
+# python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# market runtime
+data/state/
+data/ledger/
+data/cache/
+*.session
+cookies.json
+robinhood.pickle
+
+# os / ide
+.DS_Store
+.idea/
+.vscode/
+*.swp
