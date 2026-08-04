@@ -25,7 +25,16 @@ A planned autotrader for **actual BTC spot** with Robinhood as the first intende
 | `sim` | simulated fills | fake |
 | `paper` | no broker submit | fake or shadow |
 | `live-dry` | build orders, log, do not submit | none |
-| `live` | real BTC buy/sell | real |
+| `live` | real BTC buy/sell | real — **hard-refused until RH transport + MARKET_RH_LIVE=1** |
+
+## Commands now
+
+```bash
+.venv/bin/python -m market run --iterations 40
+.venv/bin/python -m market run --config config/live-dry.yaml
+.venv/bin/python -m market fetch-candles
+.venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
+```
 
 Nothing graduates to `live` without passing the risk checklist in `docs/RISK.md`.
 

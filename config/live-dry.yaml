@@ -1,0 +1,19 @@
+mode: live-dry
+symbol: BTC
+loop_seconds: 0
+iterations: 20
+broker:
+  name: sim
+risk:
+  max_position_btc: "0.002"
+  max_notional_usd: "250"
+  max_daily_loss_usd: "25"
+  max_orders_per_hour: 10
+  min_seconds_between_orders: 0
+  allow_entries: true
+strategy:
+  name: slow_trend_v1
+  fast_ema: 3
+  slow_ema: 8
+  order_qty_btc: "0.001"
+data_dir: data

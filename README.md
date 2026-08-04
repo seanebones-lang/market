@@ -9,17 +9,22 @@ Design assumes Robinhood is hostile to bots (no official retail trading API) and
 
 ## Status
 
-Phase 1–2 — domain, risk, slow_trend, SimBroker, ledger, freeze/heartbeat, CLI loop.
-Paper/sim only. No live orders. No credentials committed.
+Phase 1–3 — sim core + RH live guards + hist backtest.
+Paper/sim/live-dry only. No live orders. No credentials committed.
 
 ```bash
 cd ~/Desktop/market
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q
 .venv/bin/python -m market run --iterations 40
+.venv/bin/python -m market run --config config/live-dry.yaml
+.venv/bin/python -m market fetch-candles
+.venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 .venv/bin/python -m market freeze --reason "manual"
 .venv/bin/python -m market unfreeze
 ```
+
+Live mode is hard-refused unless `MARKET_RH_LIVE=1` and still aborts until real RH transport exists.
 
 ## Docs
 

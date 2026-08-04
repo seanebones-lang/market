@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Protocol
 
 from market.config import AppConfig
 from market.domain.models import Candle, Intent, Mode, Side, utcnow
@@ -20,6 +20,15 @@ from market.risk.gate import RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendV1
 
 
+class SupportsBroker(Protocol):
+    def get_balances(self): ...
+    def get_btc_position(self): ...
+    def get_open_orders(self): ...
+    def place_order(self, intent: Intent): ...
+    def get_quote(self, symbol: str = "BTC"): ...
+    def get_fills(self): ...
+
+
 @dataclass
 class LoopStats:
     ticks: int = 0
@@ -28,12 +37,13 @@ class LoopStats:
     blocked: int = 0
     submits: int = 0
     fills: int = 0
+    auth_freezes: int = 0
 
 
 @dataclass
 class TradingLoop:
     config: AppConfig
-    broker: SimBroker
+    broker: Any
     strategy: SlowTrendV1
     risk: RiskGate
     intents_ledger: JsonlLedger
@@ -47,6 +57,18 @@ class TradingLoop:
     stats: LoopStats = field(default_factory=LoopStats)
     # submit hook — replaced/asserted in live-dry tests
     submit_enabled: bool = True
+
+    def on_auth_error(self, exc: Exception) -> None:
+        self.risk_state.freeze_entries = True
+        self.freeze.freeze(f"auth_error:{exc}")
+        self.stats.auth_freezes += 1
+        self.acks_ledger.append(
+            {
+                "type": "auth_freeze",
+                "ts": utcnow().isoformat(),
+                "error": str(exc),
+            }
+        )
 
     def tick(self, now: datetime | None = None) -> dict:
         now = now or utcnow()
