@@ -28,13 +28,13 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ## Backtest on actual data
 
 ```bash
-# one shot: fetch fresh Coinbase BTC-USD 1h history + backtest + write report
+cd ~/Desktop/market
+
+# easiest (always works):
+./market.sh backtest --fetch --batches 5 --cash 1000 --qty 0.001
+
+# or after install:
 .venv/bin/python -m market backtest --fetch --batches 5 --cash 1000 --qty 0.001
-
-# reuse cached CSV
-.venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
-
-# reports land in data/backtests/<run_id>/{summary.json,fills.jsonl,equity.jsonl}
 ```
 
 Candles are real Coinbase Exchange public BTC-USD bars (not synthetic).

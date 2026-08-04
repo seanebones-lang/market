@@ -27,8 +27,12 @@ dev = [
 [project.scripts]
 market = "market.app.cli:main"
 
+# src/ layout: map src/market -> market in the wheel / editable install
 [tool.hatch.build.targets.wheel]
 packages = ["src/market"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
