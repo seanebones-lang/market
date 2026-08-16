@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def utcnow() -> datetime:
@@ -39,6 +39,30 @@ class Mode(str, Enum):
     PAPER = "paper"
     LIVE_DRY = "live-dry"
     LIVE = "live"
+
+
+class Timeframe(str, Enum):
+    """Supported normalized research-bar intervals."""
+
+    HOUR_1 = "1h"
+
+    @property
+    def seconds(self) -> int:
+        return 3600
+
+    @classmethod
+    def from_seconds(cls, seconds: int) -> Timeframe:
+        if seconds != cls.HOUR_1.seconds:
+            raise ValueError(f"unsupported candle interval: {seconds} seconds")
+        return cls.HOUR_1
+
+
+class DataQualityFlag(str, Enum):
+    """Provider or normalization conditions that make a bar non-tradable."""
+
+    LATE = "late"
+    PARTIAL = "partial"
+    PROVIDER_WARNING = "provider_warning"
 
 
 class Intent(BaseModel):
@@ -215,12 +239,19 @@ class RiskDecision(BaseModel):
 class Candle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    schema_version: Literal[1] = 1
     ts: datetime
+    timeframe: Timeframe = Timeframe.HOUR_1
+    source: str = "synthetic"
     open: Decimal
     high: Decimal
     low: Decimal
     close: Decimal
     volume: Decimal = Decimal("0")
+    received_at: datetime | None = None
+    close_confirmed_at: datetime | None = None
+    is_closed: bool = True
+    quality_flags: tuple[DataQualityFlag, ...] = ()
 
     @field_validator("open", "high", "low", "close", "volume", mode="before")
     @classmethod
@@ -228,3 +259,68 @@ class Candle(BaseModel):
         if isinstance(v, float):
             raise TypeError("float not allowed")
         return D(v)
+
+    @field_validator("ts", "received_at", "close_confirmed_at")
+    @classmethod
+    def _utc_timestamp(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("candle timestamps must be timezone-aware UTC")
+        if value.utcoffset() != timedelta(0):
+            raise ValueError("candle timestamps must use UTC")
+        return value.astimezone(UTC)
+
+    @field_validator("source")
+    @classmethod
+    def _source_present(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("candle source must not be empty")
+        return value
+
+    @field_validator("quality_flags", mode="before")
+    @classmethod
+    def _canonical_flags(cls, value: Any) -> tuple[DataQualityFlag, ...]:
+        if value is None:
+            return ()
+        if isinstance(value, (str, DataQualityFlag)):
+            value = (value,)
+        flags = {DataQualityFlag(item) for item in value}
+        return tuple(sorted(flags, key=lambda item: item.value))
+
+    @model_validator(mode="after")
+    def _validate_market_bar(self) -> Candle:
+        close_time = self.ts + timedelta(seconds=self.timeframe.seconds)
+        if int(self.ts.timestamp()) % self.timeframe.seconds != 0 or self.ts.microsecond != 0:
+            raise ValueError(f"candle ts must align to {self.timeframe.value} UTC boundaries")
+        if min(self.open, self.high, self.low, self.close) <= 0:
+            raise ValueError("candle prices must be > 0")
+        if self.volume < 0:
+            raise ValueError("candle volume must be >= 0")
+        if self.low > min(self.open, self.close):
+            raise ValueError("candle low cannot exceed open or close")
+        if self.high < max(self.open, self.close):
+            raise ValueError("candle high cannot be below open or close")
+        if self.low > self.high:
+            raise ValueError("candle low cannot exceed high")
+
+        if self.received_at is None:
+            self.received_at = close_time
+        if self.received_at < self.ts:
+            raise ValueError("received_at cannot precede candle open")
+
+        if self.is_closed:
+            if self.close_confirmed_at is None:
+                self.close_confirmed_at = close_time
+            if self.close_confirmed_at < close_time:
+                raise ValueError("close_confirmed_at cannot precede candle close")
+            if DataQualityFlag.PARTIAL in self.quality_flags:
+                raise ValueError("a closed candle cannot carry the partial flag")
+        elif self.close_confirmed_at is not None:
+            raise ValueError("an open candle cannot have close_confirmed_at")
+        return self
+
+    @property
+    def close_time(self) -> datetime:
+        return self.ts + timedelta(seconds=self.timeframe.seconds)

@@ -34,6 +34,7 @@ as the first intended broker adapter.
 .venv/bin/python -m market run --iterations 40
 .venv/bin/python -m market run --config config/live-dry.yaml
 .venv/bin/python -m market fetch-candles
+./market.sh verify-dataset --manifest data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ```
 
@@ -42,7 +43,7 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Complete G0 and record a clean offline baseline.
-2. Rebuild research timing, accounting, data, and walk-forward validation.
+1. Complete G2 next-bar execution, cost models, and reconcilable accounting.
+2. Build G3 walk-forward research on the verified G1 dataset segments.
 3. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
-4. Create a Robinhood credential with read actions only after the read-only adapter gate begins.
+4. Create a Robinhood credential with read actions only after the G5 read-only adapter gate begins.

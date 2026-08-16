@@ -7,6 +7,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from market.data.quality import require_clean_candles
 from market.domain.models import Candle, D, Intent, Position, Side
 
 
@@ -64,6 +65,9 @@ class SlowTrendV1:
         self.config = config or SlowTrendConfig()
 
     def evaluate(self, candles: list[Candle], position: Position) -> Intent | None:
+        if not candles:
+            return None
+        require_clean_candles(candles)
         need = self.config.slow_ema + 2
         if len(candles) < need:
             return None

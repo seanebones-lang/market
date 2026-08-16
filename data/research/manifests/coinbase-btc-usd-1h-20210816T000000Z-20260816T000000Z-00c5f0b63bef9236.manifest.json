@@ -1,0 +1,216 @@
+{
+  "bars": 43811,
+  "contiguous_segments": 4,
+  "dataset_id": "coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236",
+  "first_ts": "2021-08-16T00:00:00Z",
+  "last_ts": "2026-08-15T23:00:00Z",
+  "missing_bars": 13,
+  "normalized_bytes": 7108565,
+  "normalized_path": "normalized/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.csv",
+  "normalized_sha256": "00c5f0b63bef92361fb6dfc1c227fe282ddcda9d1d7f03f5c9a449cb97dd65e2",
+  "product": "BTC-USD",
+  "provider": "coinbase-exchange:BTC-USD",
+  "quality_report_path": "quality/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.quality.json",
+  "quality_report_sha256": "290bc0597864b6ae5b185887593054b5945ab0d2f3c0ae9a0940469745e2db04",
+  "quality_status": "pass_segmented",
+  "raw_bytes": 2707039,
+  "raw_path": "raw/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236-a1a5f5a6de20416c.json",
+  "raw_sha256": "a1a5f5a6de20416ccb669f3eaf511f12974413c5596c76310cc932ec7299dc39",
+  "regimes": [
+    {
+      "annualized_volatility_pct": "66.66728150444104860722426485",
+      "bars": 1104,
+      "end": "2021-10-01T00:00:00Z",
+      "return_pct": "-6.785051722472996559775966420",
+      "start": "2021-08-16T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "62.14150172077399343952358028",
+      "bars": 2208,
+      "end": "2022-01-01T00:00:00Z",
+      "return_pct": "5.435570008731683599561841500",
+      "start": "2021-10-01T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "67.28682442135287106506644676",
+      "bars": 2160,
+      "end": "2022-04-01T00:00:00Z",
+      "return_pct": "-1.477540961895850446774421110",
+      "start": "2022-01-01T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "77.66881908128116016026772779",
+      "bars": 2184,
+      "end": "2022-07-01T00:00:00Z",
+      "return_pct": "-56.09992257044167796991779287",
+      "start": "2022-04-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "high"
+    },
+    {
+      "annualized_volatility_pct": "61.25361374877101192189486817",
+      "bars": 2208,
+      "end": "2022-10-01T00:00:00Z",
+      "return_pct": "-2.799562885714828962023695040",
+      "start": "2022-07-01T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "47.25186586546466392911452826",
+      "bars": 2208,
+      "end": "2023-01-01T00:00:00Z",
+      "return_pct": "-14.89540800172161966106127761",
+      "start": "2022-10-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "54.02201628266708222058900918",
+      "bars": 2157,
+      "end": "2023-04-01T00:00:00Z",
+      "return_pct": "72.23985487390083251521458910",
+      "start": "2023-01-01T00:00:00Z",
+      "trend": "bull",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "41.74581437615623919927703122",
+      "bars": 2184,
+      "end": "2023-07-01T00:00:00Z",
+      "return_pct": "6.993086315526273370602916700",
+      "start": "2023-04-01T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "31.21728383769436655324611163",
+      "bars": 2208,
+      "end": "2023-10-01T00:00:00Z",
+      "return_pct": "-11.50674850894730087541393514",
+      "start": "2023-07-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "low"
+    },
+    {
+      "annualized_volatility_pct": "40.62417616996355488427634352",
+      "bars": 2208,
+      "end": "2024-01-01T00:00:00Z",
+      "return_pct": "56.84900411705797262712807390",
+      "start": "2023-10-01T00:00:00Z",
+      "trend": "bull",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "56.18458727857230510004325821",
+      "bars": 2184,
+      "end": "2024-04-01T00:00:00Z",
+      "return_pct": "68.57719034311390923979949200",
+      "start": "2024-01-01T00:00:00Z",
+      "trend": "bull",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "48.55788138369010791417253812",
+      "bars": 2184,
+      "end": "2024-07-01T00:00:00Z",
+      "return_pct": "-12.09574773991289284136257478",
+      "start": "2024-04-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "55.38342150298976407133981300",
+      "bars": 2208,
+      "end": "2024-10-01T00:00:00Z",
+      "return_pct": "1.008646360872352803947844200",
+      "start": "2024-07-01T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "51.25992308235523824852743334",
+      "bars": 2208,
+      "end": "2025-01-01T00:00:00Z",
+      "return_pct": "47.46616092877840668554653690",
+      "start": "2024-10-01T00:00:00Z",
+      "trend": "bull",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "56.46219825172426087474261721",
+      "bars": 2160,
+      "end": "2025-04-01T00:00:00Z",
+      "return_pct": "-11.58387699136099817895673579",
+      "start": "2025-01-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "41.79409256784408367871674611",
+      "bars": 2184,
+      "end": "2025-07-01T00:00:00Z",
+      "return_pct": "29.85291813792348903141008870",
+      "start": "2025-04-01T00:00:00Z",
+      "trend": "bull",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "30.67097645283732141620113339",
+      "bars": 2208,
+      "end": "2025-10-01T00:00:00Z",
+      "return_pct": "6.433044228123800714749516200",
+      "start": "2025-07-01T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "low"
+    },
+    {
+      "annualized_volatility_pct": "46.16806361837657867992687826",
+      "bars": 2203,
+      "end": "2026-01-01T00:00:00Z",
+      "return_pct": "-23.29298098471513103927483071",
+      "start": "2025-10-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "51.59775165406780904671302336",
+      "bars": 2160,
+      "end": "2026-04-01T00:00:00Z",
+      "return_pct": "-22.03034471093322757847469569",
+      "start": "2026-01-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "41.75707019198239917966161076",
+      "bars": 2179,
+      "end": "2026-07-01T00:00:00Z",
+      "return_pct": "-14.21525716691311755883453158",
+      "start": "2026-04-01T00:00:00Z",
+      "trend": "bear",
+      "volatility": "medium"
+    },
+    {
+      "annualized_volatility_pct": "30.17947698743676091207078335",
+      "bars": 1104,
+      "end": "2026-08-16T00:00:00Z",
+      "return_pct": "7.680311284631773703508974900",
+      "start": "2026-07-01T00:00:00Z",
+      "trend": "sideways",
+      "volatility": "low"
+    }
+  ],
+  "requested_end": "2026-08-16T00:00:00Z",
+  "requested_start": "2021-08-16T00:00:00Z",
+  "retrieved_at": "2026-08-16T15:06:42.398207Z",
+  "schema_version": 1,
+  "strategy_admission": "segments_only",
+  "timeframe": "1h"
+}

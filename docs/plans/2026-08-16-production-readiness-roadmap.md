@@ -175,20 +175,20 @@ while the foundation is rebuilt.
 
 ### Tasks
 
-- [ ] **G1.1** Define a candle contract: UTC open time, timeframe, source, open/high/low/close,
+- [x] **G1.1** Define a candle contract: UTC open time, timeframe, source, open/high/low/close,
   volume, received time, close-confirmed time, and data-quality flags.
-- [ ] **G1.2** Reject invalid OHLC relationships, duplicate/out-of-order timestamps, nonpositive
+- [x] **G1.2** Reject invalid OHLC relationships, duplicate/out-of-order timestamps, nonpositive
   prices, unsupported intervals, and future timestamps.
-- [ ] **G1.3** Detect missing bars. Never silently forward-fill tradable bars; declare a gap and
+- [x] **G1.3** Detect missing bars. Never silently forward-fill tradable bars; declare a gap and
   require a full indicator re-warm after repair.
-- [ ] **G1.4** Exclude the currently forming hourly bar from strategy evaluation.
-- [ ] **G1.5** Separate raw immutable data from normalized research data. Store source, retrieval
+- [x] **G1.4** Exclude the currently forming hourly bar from strategy evaluation.
+- [x] **G1.5** Separate raw immutable data from normalized research data. Store source, retrieval
   time, schema version, and checksum.
-- [ ] **G1.6** Acquire at least five full years of hourly BTC-USD data spanning bull, bear,
+- [x] **G1.6** Acquire at least five full years of hourly BTC-USD data spanning bull, bear,
   high-volatility, low-volatility, and sideways regimes. Prefer independent cross-checking of a
   sample against a second source.
-- [ ] **G1.7** Version datasets and produce a machine-readable quality report before every study.
-- [ ] **G1.8** Add deterministic fixture datasets containing gaps, duplicates, late bars, a partial
+- [x] **G1.7** Version datasets and produce a machine-readable quality report before every study.
+- [x] **G1.8** Add deterministic fixture datasets containing gaps, duplicates, late bars, a partial
   final bar, and extreme price moves.
 
 ### Exit criteria
@@ -198,6 +198,11 @@ while the foundation is rebuilt.
 - No strategy can receive an unclosed or unresolved-gap candle.
 - Research dataset covers at least three materially different market regimes.
 - Quant lead and backend lead record `G1: PASS`.
+
+**Gate record (2026-08-16):** `G1: PASS WITH DECLARED-GAP SEGMENTATION`. The five-year Coinbase
+artifact contains 13 documented missing hours and is admitted only as four checksum-verified,
+independently warmed segments. See `docs/evidence/G1-2026-08-16.md`. G2 is unlocked; later gates and
+live money remain locked.
 
 ---
 

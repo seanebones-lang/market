@@ -5,7 +5,7 @@ Autonomous **spot BTC** trader with a broker-adapter architecture.
 Primary target execution path: the **official Robinhood Crypto Trading API (BTC-USD)**.
 The strategy, risk, ledger, and operations layers remain broker-agnostic.
 
-> **LIVE TRADING DISABLED.** The repository is in production-readiness gate G0. No build in
+> **LIVE TRADING DISABLED.** The repository has completed data gate G1 only. No build in
 > this repository is approved or able to submit a live Robinhood order.
 
 > Not financial advice. Live trading can lose the entire bankroll. Passing the project gates does
@@ -24,6 +24,8 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m market paper --ticks 5 --sleep 2
 .venv/bin/python -m market run --config config/live-dry.yaml
 .venv/bin/python -m market fetch-candles
+./market.sh build-dataset --start 2021-08-16 --end 2026-08-16 --gap-policy segment
+./market.sh verify-dataset --manifest data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 .venv/bin/python -m market freeze --reason "manual"
 .venv/bin/python -m market unfreeze
@@ -43,6 +45,11 @@ cd ~/Desktop/market
 
 Candles are real Coinbase Exchange public BTC-USD bars (not synthetic).
 
+The versioned five-year research artifact is immutable and checksum-verified. It contains three
+declared Coinbase history gaps and is admitted only as four independently warmed segments. See
+`docs/DATA.md`. The existing backtester is still exploratory until G2 fixes execution timing and
+accounting.
+
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.
 
@@ -50,6 +57,7 @@ enable order submission.
 
 - `docs/THOUGHTS.md` — why this is harder than AK47, constraints, recommendations
 - `docs/ARCHITECTURE.md` — system design
+- `docs/DATA.md` — candle schema, quality gate, immutable datasets, and gap policy
 - `docs/RESEARCH-STATUS.md` — why current results cannot support promotion
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan

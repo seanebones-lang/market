@@ -94,9 +94,11 @@ class TradingLoop:
             if not self.risk_state.halt:
                 self.risk_state.freeze_entries = False
 
-        # advance synthetic candle from quote for sim
+        # Simulation can advance accelerated synthetic hourly bars. Paper mode must only use
+        # separately ingested, venue-confirmed closed candles; quote polls are marks, not bars.
         quote = self.broker.get_quote(self.config.symbol)
-        self._append_candle_from_quote(quote.mid, now)
+        if self.config.mode != Mode.PAPER:
+            self._append_candle_from_quote(quote.mid, now)
 
         position = self.broker.get_btc_position()
         balances = self.broker.get_balances()
@@ -249,10 +251,21 @@ class TradingLoop:
         return self.stats
 
     def _append_candle_from_quote(self, mid: Decimal, now: datetime) -> None:
-        # 1 candle per tick for sim simplicity (not wall-clock hour)
-        if self.candles and self.candles[-1].ts == now:
-            return
-        c = Candle(ts=now, open=mid, high=mid, low=mid, close=mid, volume=Decimal("1"))
+        # Accelerated simulation preserves the 1h data contract even when ticks run faster.
+        if self.candles:
+            candle_ts = self.candles[-1].close_time
+        else:
+            boundary = now.astimezone(UTC).replace(minute=0, second=0, microsecond=0)
+            candle_ts = boundary - timedelta(hours=1)
+        c = Candle(
+            ts=candle_ts,
+            source="synthetic:quote",
+            open=mid,
+            high=mid,
+            low=mid,
+            close=mid,
+            volume=Decimal("1"),
+        )
         self.candles.append(c)
         # keep memory bounded
         max_len = max(self.config.strategy.slow_ema * 5, 200)
@@ -289,7 +302,17 @@ def seed_trending_candles(
         else:
             px = px - step
         ts = start_ts + timedelta(hours=i)
-        out.append(Candle(ts=ts, open=px, high=px, low=px, close=px, volume=Decimal("10")))
+        out.append(
+            Candle(
+                ts=ts,
+                source="synthetic:quote",
+                open=px,
+                high=px,
+                low=px,
+                close=px,
+                volume=Decimal("10"),
+            )
+        )
     return out
 
 

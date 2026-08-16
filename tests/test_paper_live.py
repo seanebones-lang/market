@@ -35,11 +35,13 @@ def test_paper_mode_sim_fills_at_mark(tmp_path: Path):
     from market.domain.models import Intent, Side
 
     loop.strategy.evaluate = lambda c, p: Intent(side=Side.BUY, qty_btc="0.001", reason="forced")  # type: ignore[method-assign]
+    bars_before_quote_poll = len(loop.candles)
     r = loop.tick(now=utcnow())
     assert r["allow"] is True
     assert r["submitted"] is True
     assert loop.stats.fills == 1
     assert broker.get_btc_position().qty_btc == Decimal("0.001")
+    assert len(loop.candles) == bars_before_quote_poll
 
 
 def test_fetch_ticker_shape():

@@ -25,5 +25,7 @@ order permissions, or live capital.
 | `bt_20260804T203617Z` | 600 | `-$1.600358155` | Exploratory; invalid |
 | `bt_20260804T203634Z` | 600 | `-$1.600358155` | Exploratory; invalid |
 
-The next valid research artifact begins only after G1 data contracts and G2 backtest correctness
-pass. Profitability can never be guaranteed.
+G1 now provides a versioned five-year input dataset with immutable raw data, normalized candles,
+checksums, declared gaps, and strategy-safe segments. It does not rehabilitate these saved runs or
+the current engine. The next valid result begins only after G2 backtest correctness passes and uses
+the verified G1 manifest. Profitability can never be guaranteed.

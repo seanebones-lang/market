@@ -57,6 +57,29 @@ Fill:
   raw: dict
 ```
 
+## Research data plane
+
+```text
+Coinbase public candles
+        |
+        v
+immutable raw pages ---> normalized schema-v1 hourly CSV
+                                |
+                                v
+                    checksum + quality report + manifest
+                                |
+                  +-------------+-------------+
+                  |                           |
+          continuous loader            segment-only loader
+                  |                           |
+                  v                           v
+              strategy              re-warm after every gap
+```
+
+Paper quote polls update the execution mark only; they never create candles. Strategy input must be
+UTC-aligned, close-confirmed, ordered, and contiguous. Content-addressed research artifacts live
+under `data/research/`. See `docs/DATA.md` and ADR 0002.
+
 ## BrokerPort (interface)
 
 ```python

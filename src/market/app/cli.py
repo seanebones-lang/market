@@ -65,6 +65,28 @@ def main(argv: list[str] | None = None) -> int:
     fetch_p.add_argument("--batches", type=int, default=3)
     fetch_p.add_argument("--root", default=".")
 
+    dataset_p = sub.add_parser(
+        "build-dataset",
+        help="Build an immutable, quality-gated Coinbase BTC-USD research dataset",
+    )
+    dataset_p.add_argument("--start", required=True, help="UTC inclusive start (date or ISO hour)")
+    dataset_p.add_argument("--end", required=True, help="UTC exclusive end (date or ISO hour)")
+    dataset_p.add_argument("--out-dir", default="data/research")
+    dataset_p.add_argument("--root", default=".")
+    dataset_p.add_argument(
+        "--gap-policy",
+        choices=["reject", "segment"],
+        default="reject",
+        help="Reject missing bars or preserve declared gaps as separately warmed segments",
+    )
+
+    verify_dataset_p = sub.add_parser(
+        "verify-dataset",
+        help="Verify research artifact checksums and return strategy-safe segments",
+    )
+    verify_dataset_p.add_argument("--manifest", required=True)
+    verify_dataset_p.add_argument("--root", default=".")
+
     bt_p = sub.add_parser(
         "backtest",
         help="Backtest slow_trend on REAL candle data (CSV cache and/or fresh Coinbase fetch)",
@@ -112,6 +134,65 @@ def main(argv: list[str] | None = None) -> int:
         console.print(f"[green]wrote[/green] {len(candles)} candles → {out}")
         if candles:
             console.print(f"range {candles[0].ts.isoformat()} → {candles[-1].ts.isoformat()}")
+        return 0
+
+    if args.cmd == "build-dataset":
+        from datetime import datetime
+
+        from market.data.candles import fetch_coinbase_candle_range
+        from market.data.dataset import write_research_dataset
+
+        def parse_boundary(value: str) -> datetime:
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=UTC)
+            return parsed
+
+        start = parse_boundary(args.start)
+        end = parse_boundary(args.end)
+        out_dir = Path(args.out_dir)
+        if not out_dir.is_absolute():
+            out_dir = root / out_dir
+        console.print(f"fetching closed BTC-USD 1h range {start.isoformat()} → {end.isoformat()}")
+        allow_declared_gaps = args.gap_policy == "segment"
+        result = fetch_coinbase_candle_range(
+            start,
+            end,
+            allow_declared_gaps=allow_declared_gaps,
+        )
+        artifacts = write_research_dataset(
+            out_dir,
+            result,
+            allow_declared_gaps=allow_declared_gaps,
+        )
+        manifest = artifacts.manifest
+        regime_labels = sorted(
+            {f"{window.trend}/{window.volatility}" for window in manifest.regimes}
+        )
+        console.print(
+            f"[green]quality {manifest.quality_status.upper()}[/green] bars={manifest.bars} "
+            f"missing={manifest.missing_bars} segments={manifest.contiguous_segments} "
+            f"sha256={manifest.normalized_sha256}"
+        )
+        console.print(f"regimes={', '.join(regime_labels)}")
+        console.print(f"manifest={artifacts.manifest_path}")
+        return 0
+
+    if args.cmd == "verify-dataset":
+        from market.data.dataset import load_research_segments
+
+        manifest_path = Path(args.manifest)
+        if not manifest_path.is_absolute():
+            manifest_path = root / manifest_path
+        segments, manifest = load_research_segments(manifest_path)
+        console.print(
+            f"[green]verified[/green] dataset={manifest.dataset_id} "
+            f"status={manifest.quality_status} bars={sum(len(segment) for segment in segments)}"
+        )
+        console.print(
+            f"strategy_segments={len(segments)} lengths={','.join(str(len(s)) for s in segments)}"
+        )
+        console.print(f"sha256={manifest.normalized_sha256}")
         return 0
 
     if args.cmd == "backtest":

@@ -8,6 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from market.data.quality import require_clean_candles
 from market.domain.models import Balances, Candle, Fill, Position, Side
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
@@ -104,6 +105,8 @@ def run_backtest(
     """
     if not candles:
         return BacktestResult(starting_usd=starting_usd, final_usd=starting_usd, source=source)
+
+    require_clean_candles(candles)
 
     strategy_cfg = strategy_cfg or SlowTrendConfig(order_qty_btc=qty_btc)
     risk_cfg = risk_cfg or RiskConfig(
