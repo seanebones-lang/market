@@ -43,7 +43,7 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Continue G2.3a by removing legacy per-side/round-trip fee ambiguity.
+1. Continue G2.4 by representing terminal liquidation as a visible, fully costed fill.
 2. Build G3 walk-forward research on the verified G1 dataset segments.
 3. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
 4. Create a Robinhood credential with read actions only after the G5 read-only adapter gate begins.

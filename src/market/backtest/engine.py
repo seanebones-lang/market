@@ -24,7 +24,7 @@ from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Si
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class ExecutionModel(str, Enum):
@@ -182,14 +182,16 @@ class BacktestResult:
     fast_ema: int = 12
     slow_ema: int = 26
     qty_btc: Decimal = Decimal("0.001")
-    fee_bps: Decimal = Decimal("5")
     venue_cost_profile: VenueCostProfile = VenueCostProfile.LEGACY_UNCLASSIFIED
     venue: str = "unclassified"
     routing: str = "unclassified"
     api_version: str = "unclassified"
     cost_input_classification: CostInputClassification = CostInputClassification.LEGACY_UNCLASSIFIED
-    transaction_fee_treatment: TransactionFeeTreatment = TransactionFeeTreatment.LEGACY_UNCLASSIFIED
-    transaction_fee_bps_assumption: Decimal = Decimal("0")
+    transaction_fee_treatment: TransactionFeeTreatment = (
+        TransactionFeeTreatment.LEGACY_TRANSACTION_FEE_PER_FILL_ASSUMPTION
+    )
+    transaction_fee_bps_per_fill_assumption: Decimal = Decimal("5")
+    transaction_fee_bps_per_fill_applied: Decimal = Decimal("5")
     execution_model: ExecutionModel = ExecutionModel.NEXT_BAR_OPEN
     quoted_spread_bps_assumption: Decimal = Decimal("0")
     adverse_slippage_bps_assumption: Decimal = Decimal("0")
@@ -218,15 +220,17 @@ class BacktestResult:
             "fast_ema": self.fast_ema,
             "slow_ema": self.slow_ema,
             "qty_btc": str(self.qty_btc),
-            "fee_bps": str(self.fee_bps),
             "venue_cost_profile": self.venue_cost_profile.value,
             "venue": self.venue,
             "routing": self.routing,
             "api_version": self.api_version,
             "cost_input_classification": self.cost_input_classification.value,
             "transaction_fee_treatment": self.transaction_fee_treatment.value,
-            "transaction_fee_bps_assumption": str(self.transaction_fee_bps_assumption),
-            "transaction_fee_bps_applied": str(self.fee_bps),
+            "fee_calculation_basis": "executed_notional_per_fill",
+            "transaction_fee_bps_per_fill_assumption": str(
+                self.transaction_fee_bps_per_fill_assumption
+            ),
+            "transaction_fee_bps_per_fill_applied": str(self.transaction_fee_bps_per_fill_applied),
             "execution_model": self.execution_model.value,
             "quoted_spread_bps_assumption": str(self.quoted_spread_bps_assumption),
             "adverse_slippage_bps_assumption": str(self.adverse_slippage_bps_assumption),
@@ -254,7 +258,6 @@ def run_backtest(
     candles: list[Candle],
     starting_usd: Decimal = Decimal("1000"),
     qty_btc: Decimal = Decimal("0.001"),
-    fee_bps: Decimal | None = None,
     strategy_cfg: SlowTrendConfig | None = None,
     risk_cfg: RiskConfig | None = None,
     source: str = "",
@@ -263,7 +266,7 @@ def run_backtest(
     quoted_spread_bps_assumption: Decimal = Decimal("0"),
     adverse_slippage_bps_assumption: Decimal = Decimal("0"),
     venue_cost_profile: VenueCostProfile = VenueCostProfile.LEGACY_UNCLASSIFIED,
-    transaction_fee_bps_assumption: Decimal = Decimal("0"),
+    transaction_fee_bps_per_fill_assumption: Decimal | None = None,
 ) -> BacktestResult:
     """Long-only event replay with decisions after close and fills at the next bar open."""
     execution_assumptions = ExecutionAssumptions(
@@ -274,15 +277,13 @@ def run_backtest(
     execution_model = execution_assumptions.model
     venue_cost_assumptions = VenueCostAssumptions(
         profile=venue_cost_profile,
-        transaction_fee_bps_assumption=transaction_fee_bps_assumption,
+        transaction_fee_bps_per_fill_assumption=(transaction_fee_bps_per_fill_assumption),
     )
     venue_cost = resolve_venue_cost(
         venue_cost_assumptions,
         execution_model=execution_model.value,
         quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
-        legacy_fee_bps=fee_bps,
     )
-    fee_bps_applied = venue_cost.transaction_fee_bps_applied
     cost_details = venue_cost.artifact_details()
     cost_metadata = venue_cost_assumptions.metadata
     if not candles:
@@ -290,14 +291,16 @@ def run_backtest(
             starting_usd=starting_usd,
             final_usd=starting_usd,
             source=source,
-            fee_bps=fee_bps_applied,
             venue_cost_profile=venue_cost_assumptions.profile,
             venue=cost_metadata.venue,
             routing=cost_metadata.routing,
             api_version=cost_metadata.api_version,
             cost_input_classification=cost_metadata.input_classification,
             transaction_fee_treatment=cost_metadata.transaction_fee_treatment,
-            transaction_fee_bps_assumption=(venue_cost_assumptions.transaction_fee_bps_assumption),
+            transaction_fee_bps_per_fill_assumption=(
+                venue_cost.transaction_fee_bps_per_fill_assumption
+            ),
+            transaction_fee_bps_per_fill_applied=(venue_cost.transaction_fee_bps_per_fill_applied),
             execution_model=execution_model,
             quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
             adverse_slippage_bps_assumption=(execution_assumptions.adverse_slippage_bps_assumption),
@@ -398,7 +401,10 @@ def run_backtest(
             )
             quantity = pending.intent.qty_btc
             price = execution_price.fill_price_usd
-            fee = (quantity * price) * (fee_bps_applied / BPS_DIVISOR)
+            fee = venue_cost.calculate_fee_usd(
+                executed_quantity=quantity,
+                fill_price_usd=price,
+            )
             traded = False
             reject_reason: str | None = None
             if side == Side.BUY:
@@ -599,14 +605,16 @@ def run_backtest(
         fast_ema=strategy_cfg.fast_ema,
         slow_ema=strategy_cfg.slow_ema,
         qty_btc=strategy_cfg.order_qty_btc,
-        fee_bps=fee_bps_applied,
         venue_cost_profile=venue_cost_assumptions.profile,
         venue=cost_metadata.venue,
         routing=cost_metadata.routing,
         api_version=cost_metadata.api_version,
         cost_input_classification=cost_metadata.input_classification,
         transaction_fee_treatment=cost_metadata.transaction_fee_treatment,
-        transaction_fee_bps_assumption=(venue_cost_assumptions.transaction_fee_bps_assumption),
+        transaction_fee_bps_per_fill_assumption=(
+            venue_cost.transaction_fee_bps_per_fill_assumption
+        ),
+        transaction_fee_bps_per_fill_applied=(venue_cost.transaction_fee_bps_per_fill_applied),
         execution_model=execution_model,
         quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
         adverse_slippage_bps_assumption=(execution_assumptions.adverse_slippage_bps_assumption),

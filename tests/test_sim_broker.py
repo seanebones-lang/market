@@ -1,11 +1,20 @@
 from decimal import Decimal
 
+import pytest
+
 from market.domain.models import Intent, OrderStatus, Side
 from market.execution.sim import SimBroker
 
 
-def test_buy_and_sell_roundtrip():
-    b = SimBroker(usd=Decimal("1000"), btc=Decimal("0"), bid=Decimal("100"), ask=Decimal("101"))
+def test_buy_and_sell_each_pay_the_declared_per_fill_fee():
+    b = SimBroker(
+        usd=Decimal("1000"),
+        btc=Decimal("0"),
+        bid=Decimal("100"),
+        ask=Decimal("100"),
+        transaction_fee_bps_per_fill_assumption=Decimal("100"),
+        slippage_bps=Decimal("0"),
+    )
     buy = Intent(side=Side.BUY, qty_btc="1", reason="t")
     ack = b.place_order(buy)
     assert ack.status == OrderStatus.FILLED
@@ -16,6 +25,11 @@ def test_buy_and_sell_roundtrip():
     ack2 = b.place_order(sell)
     assert ack2.status == OrderStatus.FILLED
     assert b.get_btc_position().qty_btc == Decimal("0")
+    assert b.get_balances().usd == Decimal("998")
+    fills = b.get_fills()
+    assert [fill.fee_usd for fill in fills] == [Decimal("1"), Decimal("1")]
+    assert fills[0].raw["fee_calculation_basis"] == "executed_notional_per_fill"
+    assert fills[0].raw["transaction_fee_bps_per_fill_assumption"] == "100"
 
 
 def test_idempotent_client_order_id():
@@ -32,3 +46,21 @@ def test_reject_insufficient_usd():
     b = SimBroker(usd=Decimal("1"), bid=Decimal("100"), ask=Decimal("101"))
     ack = b.place_order(Intent(side=Side.BUY, qty_btc="1", reason="t"))
     assert ack.status == OrderStatus.REJECTED
+
+
+@pytest.mark.parametrize(
+    "fee_assumption",
+    [Decimal("NaN"), Decimal("-1"), Decimal("10000")],
+)
+def test_sim_broker_rejects_invalid_per_fill_fee_assumption(
+    fee_assumption: Decimal,
+):
+    with pytest.raises(ValueError, match="transaction_fee_bps_per_fill_assumption"):
+        SimBroker(transaction_fee_bps_per_fill_assumption=fee_assumption)
+
+
+def test_sim_broker_rejects_float_per_fill_fee_assumption():
+    with pytest.raises(TypeError, match="float not allowed"):
+        SimBroker(
+            transaction_fee_bps_per_fill_assumption=5.0,  # type: ignore[arg-type]
+        )

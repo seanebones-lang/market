@@ -98,13 +98,6 @@ def main(argv: list[str] | None = None) -> int:
     bt_p.add_argument("--fast", type=int, default=12)
     bt_p.add_argument("--slow", type=int, default=26)
     bt_p.add_argument(
-        "--fee-bps",
-        default=None,
-        help=(
-            "Legacy unclassified fee input (defaults to 5); incompatible with Robinhood profiles"
-        ),
-    )
-    bt_p.add_argument(
         "--venue-cost-profile",
         choices=[
             "legacy_unclassified",
@@ -115,9 +108,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Declared venue/API/routing cost contract",
     )
     bt_p.add_argument(
-        "--transaction-fee-bps-assumption",
-        default="0",
-        help="Configured fee assumption on executed notional; never treated as observed",
+        "--transaction-fee-bps-per-fill-assumption",
+        default=None,
+        help=(
+            "Fee bps charged once on every execution fill's notional; defaults to 5 only for "
+            "legacy_unclassified, omit for v1, required for v2"
+        ),
     )
     bt_p.add_argument(
         "--execution-model",
@@ -361,14 +357,17 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         candles,
         starting_usd=Decimal(args.cash),
         qty_btc=Decimal(args.qty),
-        fee_bps=Decimal(args.fee_bps) if args.fee_bps is not None else None,
         strategy_cfg=cfg,
         source=source,
         execution_model=ExecutionModel(args.execution_model),
         quoted_spread_bps_assumption=Decimal(args.quoted_spread_bps_assumption),
         adverse_slippage_bps_assumption=Decimal(args.adverse_slippage_bps_assumption),
         venue_cost_profile=VenueCostProfile(args.venue_cost_profile),
-        transaction_fee_bps_assumption=Decimal(args.transaction_fee_bps_assumption),
+        transaction_fee_bps_per_fill_assumption=(
+            Decimal(args.transaction_fee_bps_per_fill_assumption)
+            if args.transaction_fee_bps_per_fill_assumption is not None
+            else None
+        ),
     )
 
     run_id = args.run_id or datetime.now(UTC).strftime("bt_%Y%m%dT%H%M%SZ")
@@ -386,8 +385,11 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     )
     console.print(
         f"venue_cost_profile={result.venue_cost_profile.value} "
-        f"transaction_fee_bps_assumption={result.transaction_fee_bps_assumption} "
-        f"transaction_fee_bps_applied={result.fee_bps}"
+        "fee_calculation_basis=executed_notional_per_fill "
+        "transaction_fee_bps_per_fill_assumption="
+        f"{result.transaction_fee_bps_per_fill_assumption} "
+        "transaction_fee_bps_per_fill_applied="
+        f"{result.transaction_fee_bps_per_fill_applied}"
     )
     console.print(
         f"bars={result.bars} range={result.first_ts} → {result.last_ts} "

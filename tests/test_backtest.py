@@ -95,6 +95,11 @@ def test_write_backtest_report(tmp_path: Path):
     assert '"venue_cost_profile": "legacy_unclassified"' in text
     assert '"cost_input_classification": "legacy_unclassified"' in text
     assert '"market_data_source": "test"' in text
+    assert '"fee_calculation_basis": "executed_notional_per_fill"' in text
+    assert '"transaction_fee_bps_per_fill_assumption": "5"' in text
+    assert '"transaction_fee_bps_per_fill_applied": "5"' in text
+    assert '"fee_bps"' not in text
+    assert '"transaction_fee_bps_assumption"' not in text
     event_lines = paths["events"].read_text().splitlines()
     assert len(event_lines) == len(res.events)
     fill_row = json.loads(paths["fills"].read_text().splitlines()[0])
@@ -227,7 +232,7 @@ def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
         candles,
         starting_usd=Decimal("1000"),
         qty_btc=Decimal("1"),
-        fee_bps=Decimal("0"),
+        transaction_fee_bps_per_fill_assumption=Decimal("0"),
         strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
         source="fixture:future-jump",
         execution_model=ExecutionModel.NEXT_BAR_OPEN_BID_ASK,
@@ -291,7 +296,7 @@ def test_robinhood_v2_profile_charges_taker_fee_assumption_on_fill_notional():
         quoted_spread_bps_assumption=Decimal("20"),
         adverse_slippage_bps_assumption=Decimal("10"),
         venue_cost_profile=VenueCostProfile.ROBINHOOD_CRYPTO_API_V2_EXCHANGE_TAKER,
-        transaction_fee_bps_assumption=Decimal("95"),
+        transaction_fee_bps_per_fill_assumption=Decimal("95"),
     )
 
     fill = result.fills[0]
@@ -299,13 +304,16 @@ def test_robinhood_v2_profile_charges_taker_fee_assumption_on_fill_notional():
     assert fill.fee_usd == Decimal("0.190380190")
     assert fill.raw["venue_cost_profile"] == ("robinhood_crypto_api_v2_exchange_taker")
     assert fill.raw["transaction_fee_treatment"] == (
-        "exchange_taker_fee_on_executed_notional_assumption"
+        "exchange_taker_fee_per_fill_on_executed_notional_assumption"
     )
-    assert fill.raw["transaction_fee_bps_assumption"] == "95"
-    assert fill.raw["transaction_fee_bps_applied"] == "95"
+    assert fill.raw["fee_calculation_basis"] == "executed_notional_per_fill"
+    assert fill.raw["transaction_fee_bps_per_fill_assumption"] == "95"
+    assert fill.raw["transaction_fee_bps_per_fill_applied"] == "95"
     assert result.summary()["routing"] == "exchange"
     assert result.summary()["api_version"] == "v2"
-    assert result.summary()["transaction_fee_bps_assumption"] == "95"
+    assert result.summary()["transaction_fee_bps_per_fill_assumption"] == "95"
+    assert "fee_bps" not in result.summary()
+    assert "transaction_fee_bps_assumption" not in result.summary()
     assert "observed" not in str(result.summary()).lower()
 
 

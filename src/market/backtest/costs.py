@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from market.domain.models import D
 
 BPS_DIVISOR = Decimal("10000")
-DEFAULT_LEGACY_FEE_BPS = Decimal("5")
+DEFAULT_LEGACY_TRANSACTION_FEE_BPS_PER_FILL_ASSUMPTION = Decimal("5")
 
 
 class VenueCostProfile(str, Enum):
@@ -29,10 +29,10 @@ class CostInputClassification(str, Enum):
 
 
 class TransactionFeeTreatment(str, Enum):
-    LEGACY_UNCLASSIFIED = "legacy_unclassified"
+    LEGACY_TRANSACTION_FEE_PER_FILL_ASSUMPTION = "legacy_transaction_fee_per_fill_assumption"
     SPREAD_INCLUSIVE_NO_SEPARATE_TRANSACTION_FEE = "spread_inclusive_no_separate_transaction_fee"
-    EXCHANGE_TAKER_FEE_ON_EXECUTED_NOTIONAL_ASSUMPTION = (
-        "exchange_taker_fee_on_executed_notional_assumption"
+    EXCHANGE_TAKER_FEE_PER_FILL_ON_EXECUTED_NOTIONAL_ASSUMPTION = (
+        "exchange_taker_fee_per_fill_on_executed_notional_assumption"
     )
 
 
@@ -51,7 +51,9 @@ PROFILE_METADATA = {
         routing="unclassified",
         api_version="unclassified",
         input_classification=CostInputClassification.LEGACY_UNCLASSIFIED,
-        transaction_fee_treatment=TransactionFeeTreatment.LEGACY_UNCLASSIFIED,
+        transaction_fee_treatment=(
+            TransactionFeeTreatment.LEGACY_TRANSACTION_FEE_PER_FILL_ASSUMPTION
+        ),
     ),
     VenueCostProfile.ROBINHOOD_CRYPTO_API_V1_MARKET_MAKER: CostProfileMetadata(
         venue="robinhood_crypto",
@@ -68,7 +70,7 @@ PROFILE_METADATA = {
         api_version="v2",
         input_classification=CostInputClassification.CONFIGURED_ASSUMPTION,
         transaction_fee_treatment=(
-            TransactionFeeTreatment.EXCHANGE_TAKER_FEE_ON_EXECUTED_NOTIONAL_ASSUMPTION
+            TransactionFeeTreatment.EXCHANGE_TAKER_FEE_PER_FILL_ON_EXECUTED_NOTIONAL_ASSUMPTION
         ),
     ),
 }
@@ -80,35 +82,38 @@ class VenueCostAssumptions(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     profile: VenueCostProfile = VenueCostProfile.LEGACY_UNCLASSIFIED
-    transaction_fee_bps_assumption: Decimal = Decimal("0")
+    transaction_fee_bps_per_fill_assumption: Decimal | None = None
 
-    @field_validator("transaction_fee_bps_assumption", mode="before")
+    @field_validator("transaction_fee_bps_per_fill_assumption", mode="before")
     @classmethod
-    def _exact_decimal(cls, value: Any) -> Decimal:
+    def _exact_decimal(cls, value: Any) -> Decimal | None:
+        if value is None:
+            return None
         if isinstance(value, float):
             raise TypeError("float not allowed for venue cost assumptions")
         return D(value)
 
     @model_validator(mode="after")
     def _valid_profile_inputs(self) -> Self:
-        fee_bps = self.transaction_fee_bps_assumption
-        if fee_bps < 0:
-            raise ValueError("transaction_fee_bps_assumption must be >= 0")
-        if fee_bps >= BPS_DIVISOR:
-            raise ValueError("transaction_fee_bps_assumption must be < 10000")
+        per_fill_fee_bps = self.transaction_fee_bps_per_fill_assumption
+        if per_fill_fee_bps is not None and per_fill_fee_bps < 0:
+            raise ValueError("transaction_fee_bps_per_fill_assumption must be >= 0")
+        if per_fill_fee_bps is not None and per_fill_fee_bps >= BPS_DIVISOR:
+            raise ValueError("transaction_fee_bps_per_fill_assumption must be < 10000")
         if (
-            self.profile
-            in {
-                VenueCostProfile.LEGACY_UNCLASSIFIED,
-                VenueCostProfile.ROBINHOOD_CRYPTO_API_V1_MARKET_MAKER,
-            }
-            and fee_bps != 0
+            self.profile == VenueCostProfile.ROBINHOOD_CRYPTO_API_V1_MARKET_MAKER
+            and per_fill_fee_bps is not None
         ):
-            raise ValueError(f"{self.profile.value} requires transaction_fee_bps_assumption=0")
-        if self.profile == VenueCostProfile.ROBINHOOD_CRYPTO_API_V2_EXCHANGE_TAKER and fee_bps <= 0:
+            raise ValueError(
+                f"{self.profile.value} does not accept a "
+                "transaction_fee_bps_per_fill_assumption; omit it"
+            )
+        if self.profile == VenueCostProfile.ROBINHOOD_CRYPTO_API_V2_EXCHANGE_TAKER and (
+            per_fill_fee_bps is None or per_fill_fee_bps <= 0
+        ):
             raise ValueError(
                 "robinhood_crypto_api_v2_exchange_taker requires a positive "
-                "transaction_fee_bps_assumption"
+                "transaction_fee_bps_per_fill_assumption"
             )
         return self
 
@@ -120,7 +125,25 @@ class VenueCostAssumptions(BaseModel):
 @dataclass(frozen=True)
 class ResolvedVenueCost:
     assumptions: VenueCostAssumptions
-    transaction_fee_bps_applied: Decimal
+    transaction_fee_bps_per_fill_assumption: Decimal
+    transaction_fee_bps_per_fill_applied: Decimal
+
+    def calculate_fee_usd(
+        self,
+        *,
+        executed_quantity: Decimal,
+        fill_price_usd: Decimal,
+    ) -> Decimal:
+        """Apply the configured fee once to this fill's executed notional."""
+        if executed_quantity <= 0:
+            raise ValueError("executed_quantity must be > 0")
+        if fill_price_usd <= 0:
+            raise ValueError("fill_price_usd must be > 0")
+        return (
+            executed_quantity
+            * fill_price_usd
+            * (self.transaction_fee_bps_per_fill_applied / BPS_DIVISOR)
+        )
 
     def artifact_details(self) -> dict[str, str]:
         metadata = self.assumptions.metadata
@@ -131,8 +154,11 @@ class ResolvedVenueCost:
             "api_version": metadata.api_version,
             "cost_input_classification": metadata.input_classification.value,
             "transaction_fee_treatment": metadata.transaction_fee_treatment.value,
-            "transaction_fee_bps_assumption": str(self.assumptions.transaction_fee_bps_assumption),
-            "transaction_fee_bps_applied": str(self.transaction_fee_bps_applied),
+            "fee_calculation_basis": "executed_notional_per_fill",
+            "transaction_fee_bps_per_fill_assumption": str(
+                self.transaction_fee_bps_per_fill_assumption
+            ),
+            "transaction_fee_bps_per_fill_applied": str(self.transaction_fee_bps_per_fill_applied),
         }
 
 
@@ -141,25 +167,20 @@ def resolve_venue_cost(
     *,
     execution_model: str,
     quoted_spread_bps_assumption: Decimal,
-    legacy_fee_bps: Decimal | None,
 ) -> ResolvedVenueCost:
     """Resolve one cost profile and reject incompatible execution inputs."""
     if assumptions.profile == VenueCostProfile.LEGACY_UNCLASSIFIED:
-        fee_bps = (
-            DEFAULT_LEGACY_FEE_BPS
-            if legacy_fee_bps is None
-            else _validate_bps(
-                legacy_fee_bps,
-                field_name="fee_bps",
-            )
+        fee_bps_per_fill = (
+            DEFAULT_LEGACY_TRANSACTION_FEE_BPS_PER_FILL_ASSUMPTION
+            if assumptions.transaction_fee_bps_per_fill_assumption is None
+            else assumptions.transaction_fee_bps_per_fill_assumption
         )
         return ResolvedVenueCost(
             assumptions=assumptions,
-            transaction_fee_bps_applied=fee_bps,
+            transaction_fee_bps_per_fill_assumption=fee_bps_per_fill,
+            transaction_fee_bps_per_fill_applied=fee_bps_per_fill,
         )
 
-    if legacy_fee_bps is not None:
-        raise ValueError("fee_bps cannot be combined with a Robinhood venue cost profile")
     if execution_model != "next_bar_open_bid_ask":
         raise ValueError(
             f"{assumptions.profile.value} requires execution_model=next_bar_open_bid_ask"
@@ -169,20 +190,14 @@ def resolve_venue_cost(
             f"{assumptions.profile.value} requires a positive quoted_spread_bps_assumption"
         )
 
+    resolved_fee_bps_per_fill: Decimal
+    if assumptions.profile == VenueCostProfile.ROBINHOOD_CRYPTO_API_V1_MARKET_MAKER:
+        resolved_fee_bps_per_fill = Decimal("0")
+    else:
+        assert assumptions.transaction_fee_bps_per_fill_assumption is not None
+        resolved_fee_bps_per_fill = assumptions.transaction_fee_bps_per_fill_assumption
     return ResolvedVenueCost(
         assumptions=assumptions,
-        transaction_fee_bps_applied=(assumptions.transaction_fee_bps_assumption),
+        transaction_fee_bps_per_fill_assumption=resolved_fee_bps_per_fill,
+        transaction_fee_bps_per_fill_applied=resolved_fee_bps_per_fill,
     )
-
-
-def _validate_bps(value: Decimal, *, field_name: str) -> Decimal:
-    if isinstance(value, float):
-        raise TypeError(f"float not allowed for {field_name}")
-    result = D(value)
-    if not result.is_finite():
-        raise ValueError(f"{field_name} must be finite")
-    if result < 0:
-        raise ValueError(f"{field_name} must be >= 0")
-    if result >= BPS_DIVISOR:
-        raise ValueError(f"{field_name} must be < 10000")
-    return result

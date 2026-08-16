@@ -2,10 +2,11 @@
 
 ## Current gate status
 
-G2.1 through G2.3 are implemented. The engine no longer fills a decision at the close that produced
-its signal, every run declares one of two deterministic next-open execution models, and
-venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate. The rest of G2 remains
-incomplete, so backtest output is still non-promotable.
+G2.1 through G2.3a are implemented. The engine no longer fills a decision at the close that produced
+its signal, every run declares one of two deterministic next-open execution models,
+venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate, and every transaction
+fee is explicitly defined per execution fill. The rest of G2 remains incomplete, so backtest output
+is still non-promotable.
 
 ## Event order
 
@@ -57,7 +58,8 @@ Example:
 ```bash
 ./market.sh backtest \
   --csv tests/fixtures/backtest/future_jump.csv \
-  --cash 1000 --qty 1 --fast 2 --slow 3 --fee-bps 0 \
+  --cash 1000 --qty 1 --fast 2 --slow 3 \
+  --transaction-fee-bps-per-fill-assumption 0 \
   --execution-model next_bar_open_bid_ask \
   --quoted-spread-bps-assumption 20 \
   --adverse-slippage-bps-assumption 10
@@ -66,7 +68,7 @@ Example:
 At a `$20` next open, this produces a `$19.980` synthetic bid, `$20.020` synthetic ask, and
 `$20.040020` simulated buy fill. Summary, event, and fill artifacts record the reference open,
 both synthetic touches, pre-slippage touch, fill price, and named assumptions. Artifact schema
-version 4 includes this contract together with the G2.3 venue-cost fields.
+version 5 includes this contract together with the G2.3/G2.3a cost fields.
 
 ## Venue cost profiles
 
@@ -75,13 +77,14 @@ does not call them observed costs.
 
 | Profile | Venue/API/routing | Spread treatment | Separate transaction fee |
 |---|---|---|---|
-| `legacy_unclassified` | Unclassified | Depends on execution model | Existing legacy input; defaults to 5 bps |
+| `legacy_unclassified` | Unclassified | Depends on execution model | Explicit per-fill assumption; defaults to 5 bps |
 | `robinhood_crypto_api_v1_market_maker` | Robinhood Crypto / v1 / market maker | Required positive full-spread assumption | Forbidden; applied rate is zero |
 | `robinhood_crypto_api_v2_exchange_taker` | Robinhood Crypto / v2 / exchange | Required positive full-spread assumption | Required positive taker-rate assumption on executed notional |
 
-The Robinhood profiles require `next_bar_open_bid_ask` and reject the legacy `fee_bps` input. This
-prevents a v1 run from accidentally adding an exchange fee and prevents a v2 run from silently
-omitting its configured taker fee.
+The Robinhood profiles require `next_bar_open_bid_ask`. The v1 profile rejects any separate fee
+input, while v2 requires a positive per-fill taker-fee assumption. This prevents a v1 run from
+accidentally adding an exchange fee and prevents a v2 run from silently omitting its configured
+taker fee.
 
 The v1 profile embeds route cost in the synthetic touch. Robinhood defines its displayed buy and
 sell spread from mid to ask or bid, while this engine's `quoted_spread_bps_assumption` is the **full**
@@ -91,7 +94,8 @@ input. That conversion is an inference for a symmetric synthetic model, not an o
 The v2 profile calculates each simulated fee as:
 
 ```text
-fee = executed quantity * simulated fill price * transaction_fee_bps_assumption / 10,000
+fee = executed quantity * simulated fill price
+      * transaction_fee_bps_per_fill_assumption / 10,000
 ```
 
 As verified on 2026-08-16, Robinhood documents v1 as the non-fee-tier API action and v2 as the
@@ -105,9 +109,27 @@ must be rechecked before any research freeze:
 - [Robinhood crypto fee tiers](https://robinhood.com/us/en/support/articles/crypto-fee-tiers/)
 - [Robinhood Crypto standard pricing schedule](https://cdn.robinhood.com/assets/robinhood/legal/rhc-fee-schedule.pdf)
 
-Schema version 4 records the selected profile, venue, route, API version, input classification,
-transaction-fee treatment, configured fee assumption, and applied fee rate in summary, event, and
-fill artifacts.
+## Fee application contract
+
+G2.3a removes `fee_bps` and `transaction_fee_bps_assumption` from the Python and CLI interfaces.
+The only configurable transaction-fee input is now
+`transaction_fee_bps_per_fill_assumption`. It is charged once against the executed notional of
+every buy or sell fill. It is not a round-trip total, and the engine never divides it in half.
+
+For equal `$100` buy and sell fills at 95 bps, each fill pays `$0.95`; the two-fill lifecycle pays
+`$1.90`. Round-trip cost is therefore a derived sum of its actual fill costs, not a separate input.
+The paper `SimBroker` uses the same definition and writes it into fill provenance.
+
+The CLI rejects both removed ambiguous flags:
+
+```text
+--fee-bps
+--transaction-fee-bps-assumption
+```
+
+Schema version 5 records `fee_calculation_basis=executed_notional_per_fill`, the configured
+`transaction_fee_bps_per_fill_assumption`, and the per-fill rate applied in summary, event, and fill
+artifacts.
 
 ## Anti-look-ahead proof
 
@@ -123,8 +145,6 @@ signal bar_close < decision_accepted < next bar_open < order_eligible < fill
 
 - Robinhood profile rates remain configured research assumptions, not account-observed costs. A
   future pre-trade adapter must read or verify the applicable account tier.
-- The legacy fee input is still ambiguous about per-side versus round-trip semantics; G2.3a remains
-  open. New Robinhood v2 profiles explicitly charge their assumption on each executed fill.
 - Terminal inventory is still converted to cash without a visible costed fill; G2.4 remains open.
 - Cash, inventory, cost basis, realized/unrealized P&L, and liquidation value are not yet governed
   by the G2.5 accounting journal.

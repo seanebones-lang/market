@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from market.domain.models import (
     Balances,
+    D,
     Fill,
     Intent,
     Order,
@@ -29,14 +30,21 @@ class SimBroker:
         btc: Decimal = Decimal("0"),
         bid: Decimal = Decimal("100000"),
         ask: Decimal = Decimal("100010"),
-        fee_bps: Decimal = Decimal("5"),  # 5 bps
+        transaction_fee_bps_per_fill_assumption: Decimal = Decimal("5"),
         slippage_bps: Decimal = Decimal("2"),
     ) -> None:
         self._usd = usd
         self._btc = btc
         self._bid = bid
         self._ask = ask
-        self.fee_bps = fee_bps
+        if isinstance(transaction_fee_bps_per_fill_assumption, float):
+            raise TypeError("float not allowed for transaction fee assumption")
+        fee_bps_per_fill = D(transaction_fee_bps_per_fill_assumption)
+        if not fee_bps_per_fill.is_finite():
+            raise ValueError("transaction_fee_bps_per_fill_assumption must be finite")
+        if fee_bps_per_fill < 0 or fee_bps_per_fill >= Decimal("10000"):
+            raise ValueError("transaction_fee_bps_per_fill_assumption must be >= 0 and < 10000")
+        self.transaction_fee_bps_per_fill_assumption = fee_bps_per_fill
         self.slippage_bps = slippage_bps
         self._orders: dict[str, Order] = {}
         self._fills: list[Fill] = []
@@ -91,7 +99,9 @@ class SimBroker:
 
         broker_id = uuid4().hex
         px = self._fill_price(intent.side)
-        fee = (intent.qty_btc * px) * (self.fee_bps / Decimal("10000"))
+        fee = (intent.qty_btc * px) * (
+            self.transaction_fee_bps_per_fill_assumption / Decimal("10000")
+        )
         notional = intent.qty_btc * px
 
         if intent.side == Side.BUY:
@@ -137,6 +147,13 @@ class SimBroker:
             price_usd=px,
             fee_usd=fee,
             ts=utcnow(),
+            raw={
+                "simulation": True,
+                "fee_calculation_basis": "executed_notional_per_fill",
+                "transaction_fee_bps_per_fill_assumption": str(
+                    self.transaction_fee_bps_per_fill_assumption
+                ),
+            },
         )
         self._fills.append(fill)
         order = Order(

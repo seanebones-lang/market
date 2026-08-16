@@ -360,7 +360,7 @@ def build_paper_live_loop(
         btc=Decimal("0"),
         bid=quote.bid,
         ask=quote.ask,
-        fee_bps=Decimal("5"),
+        transaction_fee_bps_per_fill_assumption=Decimal("5"),
         slippage_bps=Decimal("2"),
     )
     paper_cfg = config.model_copy(update={"mode": Mode.PAPER})
