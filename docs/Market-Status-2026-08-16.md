@@ -58,13 +58,16 @@ See also: `docs/RESEARCH-STATUS.md`
 
 ## What remains (Immediate work)
 
-1. **G2.10 — Make every run fully reproducible**
-   Record the code revision, dataset checksum, complete configuration, engine version, costs, seed, trades, equity, and metrics.
+1. **G3.1 — Preregister the strategy hypothesis**
+   Define rationale, allowed inputs, parameter search space, and rejection criteria before testing.
 
-2. **Approve the complete G2 gate**
-   Independent QA and execution review—not just passing unit tests.
+2. **G3.2 — Freeze the final holdout and walk-forward design**
+   Prevent research choices from leaking into the untouched evaluation period.
 
-### After G2
+3. **G3.3 — Create the complete experiment registry**
+   Preserve successful and failed variants and account for multiple testing.
+
+### Later gates
 
 - **G3:** Run the real five-year strategy study with walk-forward splits, untouched holdout, parameter-neighborhood testing, bootstrap confidence bounds, realistic and doubled costs, regime analysis, and benchmarks. This is the phase that determines whether an edge exists.
 - **G4:** Rebuild paper trading with persistent SQLite state, closed-hour aggregation, freshness enforcement, restart recovery, and event replay.
@@ -81,8 +84,12 @@ The complete sequence is in the production-readiness roadmap: `docs/plans/2026-0
 
 - **G2.9:** The golden/failure acceptance matrix now covers accounting, anti-look-ahead timing,
   spread/slippage direction, partial executions, next-open insufficient cash, and terminal fees.
+- **G2.10:** Schema-11 runs now bind preserved input data, complete resolved config, deterministic
+  identity, engine/Git revision, seed contract, and every output artifact by SHA-256.
+- **G2 gate:** Passed for the research engine. This validates mechanics and reproducibility, not
+  profitability.
 
-**The correct next step is G2.10, followed by the complete G2 review and then the decisive G3 profitability study.**
+**The correct next step is G3.1: preregister the hypothesis before running the five-year study.**
 
 ---
 

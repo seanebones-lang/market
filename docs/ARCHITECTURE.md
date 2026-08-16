@@ -97,7 +97,9 @@ closed-trade outcomes, flat-to-flat round trips, and remaining inventory. A sepa
 analyzer replays cash, matched-notional buy-and-hold, and periodic DCA under the same synthetic
 execution and venue-cost contract. A performance analyzer consumes the unsampled costed-NLV series
 for the strategy and benchmarks and produces declared hourly risk/trade statistics plus aligned OLS
-benchmark alpha.
+benchmark alpha. Schema-11 reports preserve the exact input candles and resolved run configuration;
+an immutable SHA-256 manifest binds input data, events, executions, accounting, trades, benchmarks,
+equity, and metrics to an engine version and Git code identity.
 
 ## BrokerPort (interface)
 

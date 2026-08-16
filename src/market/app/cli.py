@@ -94,6 +94,13 @@ def main(argv: list[str] | None = None) -> int:
     verify_dataset_p.add_argument("--manifest", required=True)
     verify_dataset_p.add_argument("--root", default=".")
 
+    verify_backtest_p = sub.add_parser(
+        "verify-backtest",
+        help="Verify a checksummed, self-contained backtest report",
+    )
+    verify_backtest_p.add_argument("--manifest", required=True)
+    verify_backtest_p.add_argument("--root", default=".")
+
     bt_p = sub.add_parser(
         "backtest",
         help="Backtest slow_trend on REAL candle data (CSV cache and/or fresh Coinbase fetch)",
@@ -160,6 +167,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Write summary/fills/equity under this dir",
     )
     bt_p.add_argument("--run-id", default=None, help="Optional run id (default: timestamp)")
+    bt_p.add_argument(
+        "--random-seed",
+        type=int,
+        default=0,
+        help="Recorded nonnegative deterministic seed (current engine uses no randomness)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -242,6 +255,27 @@ def main(argv: list[str] | None = None) -> int:
             f"strategy_segments={len(segments)} lengths={','.join(str(len(s)) for s in segments)}"
         )
         console.print(f"sha256={manifest.normalized_sha256}")
+        return 0
+
+    if args.cmd == "verify-backtest":
+        from market.backtest.reproducibility import verify_backtest_report
+
+        manifest_path = Path(args.manifest)
+        if not manifest_path.is_absolute():
+            manifest_path = root / manifest_path
+        backtest_manifest = verify_backtest_report(manifest_path)
+        console.print(
+            f"[green]verified[/green] run_id={backtest_manifest.run_id} "
+            f"engine={backtest_manifest.provenance.engine_version} "
+            f"artifacts={len(backtest_manifest.artifacts)} "
+            f"input_sha256={backtest_manifest.provenance.input_data_sha256}"
+        )
+        console.print(
+            f"code_revision={backtest_manifest.source_revision.commit_sha} "
+            f"code_status={backtest_manifest.source_revision.status} "
+            "code_identity_reproducible="
+            f"{backtest_manifest.code_identity_reproducible}"
+        )
         return 0
 
     if args.cmd == "backtest":
@@ -327,7 +361,13 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     from datetime import datetime
 
     from market.backtest.costs import VenueCostProfile
-    from market.backtest.engine import ExecutionModel, run_backtest, write_backtest_report
+    from market.backtest.engine import (
+        BACKTEST_ENGINE_VERSION,
+        ExecutionModel,
+        run_backtest,
+        write_backtest_report,
+    )
+    from market.backtest.reproducibility import verify_backtest_report
     from market.data.candles import fetch_coinbase_candles, load_candles_csv, save_candles_csv
     from market.strategy.slow_trend import SlowTrendConfig
 
@@ -385,13 +425,15 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
             else None
         ),
         benchmark_dca_interval_bars=int(args.benchmark_dca_interval_bars),
+        random_seed=int(args.random_seed),
     )
 
     run_id = args.run_id or datetime.now(UTC).strftime("bt_%Y%m%dT%H%M%SZ")
     out_dir = Path(args.out_dir)
     if not out_dir.is_absolute():
         out_dir = root / out_dir
-    paths = write_backtest_report(result, out_dir, run_id)
+    paths = write_backtest_report(result, out_dir, run_id, repository_root=root)
+    manifest = verify_backtest_report(paths["manifest"])
 
     console.print("[bold]BACKTEST (actual data)[/bold]")
     console.print(f"source={result.source}")
@@ -411,6 +453,17 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     console.print(
         f"bars={result.bars} range={result.first_ts} → {result.last_ts} "
         f"strategy=slow_trend {result.fast_ema}/{result.slow_ema}"
+    )
+    console.print(
+        f"engine_version={BACKTEST_ENGINE_VERSION} "
+        f"input_data_sha256={result.provenance.input_data_sha256} "
+        f"resolved_config_sha256={result.provenance.resolved_config_sha256} "
+        f"random_seed={result.provenance.random_seed} randomness_used=false"
+    )
+    console.print(
+        f"code_revision={manifest.source_revision.commit_sha} "
+        f"code_status={manifest.source_revision.status} "
+        f"code_identity_reproducible={manifest.code_identity_reproducible}"
     )
     console.print(
         f"fills={len(result.fills)} intents={result.intents} "
@@ -524,6 +577,7 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         console.print(f"first_fill {f0.side.value} {f0.qty_btc}@{f0.price_usd} {f0.ts.isoformat()}")
         console.print(f"last_fill  {f1.side.value} {f1.qty_btc}@{f1.price_usd} {f1.ts.isoformat()}")
     console.print(f"[green]wrote[/green] {paths['summary']}")
+    console.print(f"       {paths['input_data']} ({len(result.input_candles)} rows)")
     console.print(f"       {paths['events']} ({len(result.events)} rows)")
     console.print(f"       {paths['fills']} ({len(result.fills)} rows)")
     console.print(f"       {paths['accounting']} ({len(result.accounting_journal)} rows)")
@@ -551,6 +605,7 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         f"({len(result.performance.strategy_observations)} rows)"
     )
     console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")
+    console.print(f"       {paths['manifest']} ({len(manifest.artifacts)} artifacts verified)")
     return 0
 
 

@@ -2,12 +2,12 @@
 
 ## Current gate status
 
-G2.1 through G2.9 are implemented. The engine no longer fills a decision at the close that produced
+G2.1 through G2.10 are implemented and the complete G2 research-engine gate passes. The engine no
+longer fills a decision at the close that produced
 its signal, every run declares one of two deterministic next-open execution models,
 venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate, and every transaction
 fee is explicitly defined per execution fill. End-of-data liquidation is now a visible, fully
-costed sell fill that leaves the reported portfolio flat. G2.10 remains incomplete, so
-backtest output is still non-promotable. Every fill now posts through an immutable accounting
+costed sell fill that leaves the reported portfolio flat. Every fill now posts through an immutable accounting
 journal, and every mark distinguishes mid-marked equity from costed net liquidation value. Every
 run now also carries three cost-equivalent passive benchmarks.
 
@@ -132,7 +132,7 @@ The CLI rejects both removed ambiguous flags:
 --transaction-fee-bps-assumption
 ```
 
-Schema version 10 records `fee_calculation_basis=executed_notional_per_fill`, the configured
+Schema version 11 records `fee_calculation_basis=executed_notional_per_fill`, the configured
 `transaction_fee_bps_per_fill_assumption`, and the per-fill rate applied in summary, event, and fill
 artifacts.
 
@@ -213,7 +213,7 @@ net liquidation value
   = cash + inventory * estimated liquidation sell price - estimated liquidation fee
 ```
 
-Schema version 10 and the Python result model therefore use explicit names instead of the old
+Schema version 11 and the Python result model therefore use explicit names instead of the old
 ambiguous `pnl_usd`, `final_usd`, `fees_usd`, and `return_pct` names. They report final cash and
 inventory, remaining cost basis, average entry, realized and unrealized gross P&L, cumulative fees,
 marked equity, net liquidation value, both after-fee P&L views, and net-liquidation return. For a
@@ -251,7 +251,7 @@ two-execution entry and two-execution exit is two orders, four executions, four 
 executions, two closed trades, and one round trip. This prevents the old practice of using `fills`,
 `trades`, and `round trips` as synonyms.
 
-Schema version 10 carries `lifecycle.jsonl` with one lifecycle summary, one record per order, one per
+Schema version 11 carries `lifecycle.jsonl` with one lifecycle summary, one record per order, one per
 closed trade, and one per completed round trip. Summary and CLI output separately report order and
 execution states, partial fills, closed-trade outcomes, round trips, and open inventory/basis/entry
 fees.
@@ -292,7 +292,7 @@ net P&L over maximum drawdown = final net P&L after fees / maximum dollar NLV dr
 The ratio is undefined when maximum drawdown is zero; artifacts record that state instead of
 inventing zero or infinity. This is not called Sharpe or Calmar and is not annualized.
 
-Schema version 10 carries `benchmarks.jsonl`, `benchmark_fills.jsonl`, and
+Schema version 11 carries `benchmarks.jsonl`, `benchmark_fills.jsonl`, and
 `benchmark_equity.jsonl`. These preserve the benchmark contract, three results, three comparisons,
 every passive execution, and every bar-close net-liquidation point.
 
@@ -349,7 +349,7 @@ statistical significance and currently has no confidence interval. Alpha is unde
 benchmark has zero return variance, as cash normally does. The separate annualized active-return
 difference remains available in that case.
 
-Schema version 10 adds `performance.jsonl` with one contract, four portfolio-statistic rows, and
+Schema version 11 carries `performance.jsonl` with one contract, four portfolio-statistic rows, and
 three benchmark-alpha rows. `performance_observations.jsonl` preserves every unsampled strategy
 NLV/inventory observation used by the calculations; benchmark observations remain in
 `benchmark_equity.jsonl`.
@@ -387,10 +387,37 @@ unaffordable at execution and emits `execution_rejected` with reason
 `insufficient_cash_at_execution`. It produces zero fills, fees, inventory, P&L, or terminal orders,
 and the journal remains the single `$15` opening balance.
 
+## G2.10 reproducibility and integrity contract
+
+Schema version 11 removes wall-clock/UUID nondeterminism from backtest order identity. Strategy
+orders use a deterministic sequence/bar/side identifier, and every run records a nonnegative seed
+with `randomness_used=false`; the current engine has no stochastic execution path.
+
+Every report directory is immutable by run ID and includes the exact canonical input candles in
+`input_candles.jsonl`. The summary and `manifest.json` bind:
+
+- `market-event-backtester/1.0` and artifact schema 11;
+- the canonical candle-sequence SHA-256 and bar count;
+- the full resolved strategy, risk, execution, cost, benchmark, and reporting configuration;
+- the resolved-config SHA-256, seed, and randomness-use declaration;
+- the Git commit and `clean`, `dirty`, or `unavailable` status; and
+- 12 artifact paths, byte sizes, record counts, and SHA-256 digests.
+
+The manifest maps input data, executions, closed trades, equity, and metrics to their authoritative
+artifacts. `verify-backtest` checks every file, summary identity, config checksum, preserved-candle
+fingerprint, row sequence, and report-root path. Same-size tampering fails checksum verification.
+A duplicate run ID raises instead of overwriting prior evidence.
+
+A code identity is reproducible only when Git status is `clean`. Dirty or unavailable revisions
+remain verifiable as artifact bundles but are explicitly non-promotable as code-identical research
+runs. Unit tests inject a fixed clean revision to prove byte-identical repeated output; the CLI has
+no revision-override flag.
+
 ## Known invalidities still open
 
 - Robinhood profile rates remain configured research assumptions, not account-observed costs. A
   future pre-trade adapter must read or verify the applicable account tier.
-- Fully reproducible run identity remains open in G2.10.
+- G3 walk-forward, uncertainty, parameter-stability, and untouched-holdout evidence do not exist.
 
-No result from this intermediate engine can support a profitability or live-money decision.
+The corrected engine is suitable for G3 research. Existing short saved runs still cannot support a
+profitability or live-money decision.

@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from market.backtest.costs import VenueCostProfile
 from market.backtest.engine import (
+    BACKTEST_ENGINE_VERSION,
     BacktestEventType,
     EquityPointStage,
     ExecutionAssumptions,
@@ -18,6 +19,7 @@ from market.backtest.engine import (
     run_backtest,
     write_backtest_report,
 )
+from market.backtest.reproducibility import verify_backtest_report
 from market.data.candles import load_candles_csv, save_candles_csv
 from market.domain.models import Candle, Side
 from market.strategy.slow_trend import SlowTrendConfig
@@ -94,6 +96,7 @@ def test_write_backtest_report(tmp_path: Path):
         source="test",
     )
     paths = write_backtest_report(res, tmp_path, "run1")
+    assert paths["input_data"].exists()
     assert paths["summary"].exists()
     assert paths["events"].exists()
     assert paths["fills"].exists()
@@ -105,6 +108,7 @@ def test_write_backtest_report(tmp_path: Path):
     assert paths["performance"].exists()
     assert paths["performance_observations"].exists()
     assert paths["equity"].exists()
+    assert paths["manifest"].exists()
     text = paths["summary"].read_text()
     summary = json.loads(text)
     assert "schema_version" in text
@@ -117,7 +121,17 @@ def test_write_backtest_report(tmp_path: Path):
     assert '"fee_calculation_basis": "executed_notional_per_fill"' in text
     assert '"transaction_fee_bps_per_fill_assumption": "5"' in text
     assert '"transaction_fee_bps_per_fill_applied": "5"' in text
-    assert '"schema_version": 10' in text
+    assert '"schema_version": 11' in text
+    assert summary["run_id"] == "run1"
+    assert summary["engine_version"] == BACKTEST_ENGINE_VERSION
+    assert summary["input_bar_count"] == len(candles)
+    assert len(summary["input_data_sha256"]) == 64
+    assert len(summary["resolved_config_sha256"]) == 64
+    assert summary["random_seed"] == 0
+    assert summary["randomness_used"] is False
+    assert summary["resolved_config"]["strategy"]["fast_ema"] == 3
+    assert summary["resolved_config"]["risk"]["allow_entries"] is True
+    assert summary["source_revision"]["status"] in {"clean", "dirty", "unavailable"}
     assert '"terminal_liquidation_model": "last_bar_close"' in text
     assert '"terminal_liquidation_fills": 1' in text
     assert summary["accounting_method"] == ("weighted_average_gross_cost_basis_fees_separate")
@@ -210,6 +224,14 @@ def test_write_backtest_report(tmp_path: Path):
     assert equity_rows[-1]["inventory_btc"] == "0"
     assert equity_rows[-1]["marked_equity_usd"] == str(res.marked_equity_usd)
     assert equity_rows[-1]["net_liquidation_value_usd"] == str(res.net_liquidation_value_usd)
+    input_rows = [json.loads(line) for line in paths["input_data"].read_text().splitlines()]
+    assert len(input_rows) == len(candles)
+    assert input_rows[0]["type"] == "input_candle"
+    assert input_rows[0]["sequence"] == 1
+    manifest = verify_backtest_report(paths["manifest"])
+    assert manifest.run_id == "run1"
+    assert len(manifest.artifacts) == 12
+    assert manifest.provenance.input_data_sha256 == summary["input_data_sha256"]
 
 
 def test_next_open_execution_price_has_no_synthetic_cost():

@@ -36,6 +36,7 @@ as the first intended broker adapter.
 .venv/bin/python -m market fetch-candles
 ./market.sh verify-dataset --manifest data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
+./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 ```
 
 Nothing graduates to `live` without passing G0-G8 in
@@ -43,8 +44,9 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Continue G2.10 with complete reproducible run identity and artifact provenance.
-2. Record the complete G2 gate review after G2.10 passes.
-3. Build G3 walk-forward research on the verified G1 dataset segments.
+1. Begin G3.1 by preregistering the EMA hypothesis, rationale, inputs, search space, and rejection
+   criteria.
+2. Freeze the untouched G3 holdout before parameter exploration.
+3. Build the walk-forward experiment registry on the verified G1 dataset segments.
 4. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
-5. Create a Robinhood credential with read actions only after the G5 read-only adapter gate begins.
+5. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.

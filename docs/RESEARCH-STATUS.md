@@ -34,7 +34,7 @@ order permissions, or live capital.
 
 G1 now provides a versioned five-year input dataset with immutable raw data, normalized candles,
 checksums, declared gaps, and strategy-safe segments. It does not rehabilitate these saved runs or
-the partially rebuilt engine. G2.1 now enforces next-bar-open eligibility, G2.2 supplies declared
+make their old engine outputs promotable. G2.1 now enforces next-bar-open eligibility, G2.2 supplies declared
 bid/ask and adverse-slippage models, and G2.3 supplies route-specific Robinhood cost contracts. The
 G2.3a schema defines each transaction fee per executed fill, and G2.4 makes terminal liquidation a
 fully costed sell fill that leaves new runs flat. G2.5 adds an immutable portfolio journal and
@@ -48,5 +48,9 @@ do not make the short saved reports valid or establish statistical significance.
 the named golden/failure acceptance matrix for accounting, anti-look-ahead timing, directional
 spread/slippage, partial executions, next-open insufficient cash, and terminal fees. It proves the
 current mechanics against hand-calculated fixtures; it does not test an investment hypothesis.
-The next valid result begins only after the complete G2 gate passes and uses the verified G1
-manifest. Profitability can never be guaranteed.
+G2.10 removes nondeterministic backtest order identity and makes schema-11 run directories
+immutable, self-contained, and checksum-verifiable. Each report binds preserved input candles,
+complete resolved config, seed contract, engine version, Git revision status, costs, executions,
+trades, equity, and metrics. The complete G2 research-engine gate now passes. The next valid study
+begins in G3 on the verified G1 segments with a preregistered walk-forward and untouched-holdout
+contract. No G3 evidence exists yet, and profitability can never be guaranteed.

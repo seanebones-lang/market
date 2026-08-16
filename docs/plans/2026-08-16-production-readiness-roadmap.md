@@ -126,7 +126,8 @@ G0 Live lock and clean baseline
   -> G10 Controlled scaling (optional)
 ```
 
-Only **G0** is authorized to start. G1-G10 are planned, not active.
+G0-G2 have passed with evidence. **G3 is the only authorized next gate.** G4-G10 and every
+live-money action remain locked.
 
 ---
 
@@ -234,15 +235,16 @@ reconcilable.
   stated annualization, profit factor, expectancy, fee drag, and benchmark alpha.
 - [x] **G2.9** Add golden accounting tests, next-bar anti-look-ahead tests, spread/slippage direction
   tests, partial-fill tests, insufficient-cash tests, and terminal-fee tests.
-- [ ] **G2.10** Make run artifacts reproducible: code revision, data checksum, config, random seed,
+- [x] **G2.10** Make run artifacts reproducible: code revision, data checksum, config, random seed,
   engine version, costs, trades, equity curve, and metrics.
 
 **Increment record (2026-08-16):** `G2.1: PASS`; `G2.2: PASS`; `G2.3: PASS`; `G2.3a: PASS`;
-`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`; `G2.7: PASS`; `G2.8: PASS`; `G2.9: PASS`. The future-jump
-fixture proves next-open fills and end-of-data decisions expire unfilled. Directional tests prove
+`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`; `G2.7: PASS`; `G2.8: PASS`; `G2.9: PASS`; `G2.10: PASS`.
+The future-jump fixture proves next-open fills and end-of-data decisions expire unfilled.
+Directional tests prove
 buys cross the synthetic ask and slip upward while sells cross the synthetic bid and slip downward.
-Venue-profile tests keep
-Robinhood v1 spread-only treatment separate from v2 exchange-taker fee assumptions. Per-fill tests
+Venue-profile tests keep Robinhood v1 spread-only treatment separate from v2 exchange-taker fee
+assumptions. Per-fill tests
 prove equal buy and sell notionals each pay the full configured fee rate, and CLI tests prove
 ambiguous flags are gone. Terminal-liquidation tests prove remaining inventory becomes a visible,
 costed sell fill and leaves the portfolio flat. The portfolio journal proves every cash/inventory
@@ -255,10 +257,16 @@ drawdown terms. Exact performance fixtures prove turnover, exposure, drawdown du
 volatility, annualized Sharpe/Sortino, fee-aware trade statistics, explicit fee drag, and OLS alpha
 under a declared hourly contract. The G2.9 acceptance matrix maps independently hand-calculated
 accounting, timing, directional-cost, partial-execution, insufficient-cash, and terminal-fee proofs
-to deterministic tests. A gap-up case
-proves an order that becomes unaffordable at its eligible next open is rejected without a fill or
-account mutation. See the G2.1 through G2.9 files under `docs/evidence/`. This is not a G2 gate
-pass; G2.10 and all live-money stages remain locked.
+to deterministic tests. A gap-up case proves an order that becomes unaffordable at its eligible
+next open is rejected without a fill or
+account mutation. Schema-11 reports replace random order IDs with deterministic identities,
+preserve canonical input candles, record complete resolved config/seed/engine/Git identity, and
+bind all 12 artifacts through a tamper-evident manifest. See the G2.1 through G2.10 files and final
+G2 review under `docs/evidence/`.
+
+**Gate record (2026-08-16):** `G2: PASS`. All exit criteria reconcile under deterministic golden
+fixtures and the schema-11 report repeats byte-for-byte under identical clean code identity. G3 is
+unlocked. G4-G10 and live money remain locked.
 
 ### Exit criteria
 
@@ -569,15 +577,15 @@ A checkbox is complete only when all of the following exist:
 5. Independent review for safety-critical changes.
 6. No regression in earlier gate criteria.
 
-## First authorized work package
+## Current authorized work package
 
-Start with **G0 only**, in this order:
+Start with **G3 only**, in this order:
 
-1. Make the test suite fully offline and replace vacuous assertions.
-2. Add an explicit live-submit prohibition test at the transport boundary.
-3. Update Robinhood documentation and credential design to the official API.
-4. Decide the untracked `loop 2.py` disposition with the owner.
-5. Add CI and record the clean baseline.
+1. Preregister the hypothesis, economic rationale, inputs, search space, and rejection criteria.
+2. Freeze the untouched holdout and walk-forward fold design.
+3. Create the complete experiment registry before running parameter searches.
+4. Run base/doubled-cost and regime analyses without tuning on the holdout.
+5. Record a signed go/no-go research memo.
 
-Do not begin the backtester rewrite until `G0: PASS` is recorded. Do not create a Robinhood API
-credential with order permissions until G0-G8 have passed.
+Do not begin G4 or create any Robinhood credential while G3 is unresolved. Never create a
+Robinhood credential with order permissions until G0-G8 have passed and G9 is explicitly approved.

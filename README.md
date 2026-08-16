@@ -5,8 +5,9 @@ Autonomous **spot BTC** trader with a broker-adapter architecture.
 Primary target execution path: the **official Robinhood Crypto Trading API (BTC-USD)**.
 The strategy, risk, ledger, and operations layers remain broker-agnostic.
 
-> **LIVE TRADING DISABLED.** The repository has completed data gate G1 only. No build in
-> this repository is approved or able to submit a live Robinhood order.
+> **LIVE TRADING DISABLED.** Foundation gates G0-G2 are complete; strategy-research gate G3 has not
+> established an edge. No build in this repository is approved or able to submit a live Robinhood
+> order.
 
 > Not financial advice. Live trading can lose the entire bankroll. Passing the project gates does
 > not guarantee profitability.
@@ -27,6 +28,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ./market.sh build-dataset --start 2021-08-16 --end 2026-08-16 --gap-policy segment
 ./market.sh verify-dataset --manifest data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
+./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 .venv/bin/python -m market freeze --reason "manual"
 .venv/bin/python -m market unfreeze
 ```
@@ -61,8 +63,10 @@ bar-close exposure, drawdown duration, hourly/annualized volatility, Sharpe/Sort
 profit factor and expectancy, explicit fee drag, and benchmark-relative OLS alpha under a declared
 hourly crypto annualization contract. G2.9 closes the named golden/failure acceptance matrix,
 including a next-open gap-up that rejects an order which became unaffordable without mutating cash,
-inventory, fees, or the journal. Reproducible run identity remains open in G2.10, so the backtester
-remains exploratory.
+inventory, fees, or the journal. G2.10 makes schema-11 reports self-contained and verifiable with
+deterministic order identities, preserved input candles, resolved config and seed checksums, engine
+and Git identity, immutable run directories, and a manifest binding every artifact. The G2 research
+engine gate is complete; profitability remains untested until G3.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.

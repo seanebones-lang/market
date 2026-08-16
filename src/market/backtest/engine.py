@@ -41,12 +41,30 @@ from market.backtest.performance import (
     ResearchPerformanceAnalysis,
     analyze_research_performance,
 )
+from market.backtest.reproducibility import (
+    REQUIRED_EVIDENCE_ROLES,
+    ArtifactIntegrity,
+    BacktestArtifactManifest,
+    BacktestReproducibilityError,
+    BacktestRunProvenance,
+    SourceRevision,
+    build_artifact_integrity,
+    build_run_provenance,
+    candle_payload,
+    fingerprint_candles,
+    fingerprint_config,
+    pretty_json_bytes,
+    resolve_source_revision,
+    validate_random_seed,
+    validate_run_id,
+)
 from market.data.quality import require_clean_candles
 from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Side
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
+BACKTEST_ENGINE_VERSION = "market-event-backtester/1.0"
 
 
 class ExecutionModel(str, Enum):
@@ -271,6 +289,8 @@ class EquityPoint:
 
 @dataclass
 class BacktestResult:
+    input_candles: tuple[Candle, ...]
+    provenance: BacktestRunProvenance
     fills: list[Fill] = field(default_factory=list)
     events: list[BacktestEvent] = field(default_factory=list)
     equity_curve: list[EquityPoint] = field(default_factory=list)
@@ -333,6 +353,7 @@ class BacktestResult:
     def summary(self) -> dict[str, Any]:
         return {
             "schema_version": SCHEMA_VERSION,
+            **self.provenance.summary(),
             "source": self.source,
             "market_data_source": self.source,
             "strategy": self.strategy,
@@ -411,8 +432,16 @@ def run_backtest(
     venue_cost_profile: VenueCostProfile = VenueCostProfile.LEGACY_UNCLASSIFIED,
     transaction_fee_bps_per_fill_assumption: Decimal | None = None,
     benchmark_dca_interval_bars: int = 168,
+    random_seed: int = 0,
 ) -> BacktestResult:
     """Long-only event replay with decisions after close and fills at the next bar open."""
+    random_seed = validate_random_seed(random_seed)
+    if (
+        isinstance(record_equity_every, bool)
+        or not isinstance(record_equity_every, int)
+        or record_equity_every < 0
+    ):
+        raise ValueError("record_equity_every must be an integer >= 0")
     execution_assumptions = ExecutionAssumptions(
         model=execution_model,
         quoted_spread_bps_assumption=quoted_spread_bps_assumption,
@@ -431,6 +460,56 @@ def run_backtest(
     )
     cost_details = venue_cost.artifact_details()
     cost_metadata = venue_cost_assumptions.metadata
+    strategy_cfg = strategy_cfg or SlowTrendConfig(order_qty_btc=qty_btc)
+    risk_cfg = risk_cfg or RiskConfig(
+        max_position_btc=qty_btc,
+        max_notional_usd=Decimal("100000"),
+        max_daily_loss_usd=Decimal("100000"),
+        max_orders_per_hour=10000,
+        min_seconds_between_orders=0,
+        allow_entries=True,
+    )
+    resolved_config: dict[str, Any] = {
+        "source": source,
+        "starting_cash_usd": str(starting_cash_usd),
+        "strategy": strategy_cfg.model_dump(mode="json"),
+        "risk": risk_cfg.model_dump(mode="json"),
+        "execution": {
+            "model": execution_model.value,
+            "quoted_spread_bps_assumption": str(execution_assumptions.quoted_spread_bps_assumption),
+            "adverse_slippage_bps_assumption": str(
+                execution_assumptions.adverse_slippage_bps_assumption
+            ),
+            "terminal_liquidation_model": terminal_liquidation_model.value,
+        },
+        "venue_cost": {
+            "profile": venue_cost_assumptions.profile.value,
+            "venue": cost_metadata.venue,
+            "routing": cost_metadata.routing,
+            "api_version": cost_metadata.api_version,
+            "input_classification": cost_metadata.input_classification.value,
+            "transaction_fee_treatment": cost_metadata.transaction_fee_treatment.value,
+            "fee_calculation_basis": "executed_notional_per_fill",
+            "transaction_fee_bps_per_fill_assumption": str(
+                venue_cost.transaction_fee_bps_per_fill_assumption
+            ),
+            "transaction_fee_bps_per_fill_applied": str(
+                venue_cost.transaction_fee_bps_per_fill_applied
+            ),
+        },
+        "benchmark": {"dca_interval_bars": benchmark_dca_interval_bars},
+        "reporting": {"record_equity_every": record_equity_every},
+        "random_seed": random_seed,
+        "randomness_used": False,
+    }
+    input_candles = tuple(candles)
+    provenance = build_run_provenance(
+        engine_version=BACKTEST_ENGINE_VERSION,
+        artifact_schema_version=SCHEMA_VERSION,
+        candles=input_candles,
+        resolved_config=resolved_config,
+        random_seed=random_seed,
+    )
     account = PortfolioAccount(starting_cash_usd=starting_cash_usd)
     if not candles:
         benchmarks = analyze_benchmarks(
@@ -451,6 +530,8 @@ def run_backtest(
             benchmarks=benchmarks,
         )
         return BacktestResult(
+            input_candles=input_candles,
+            provenance=provenance,
             starting_cash_usd=starting_cash_usd,
             final_cash_usd=starting_cash_usd,
             marked_equity_usd=starting_cash_usd,
@@ -501,15 +582,6 @@ def run_backtest(
         for bar in candles
     ]
 
-    strategy_cfg = strategy_cfg or SlowTrendConfig(order_qty_btc=qty_btc)
-    risk_cfg = risk_cfg or RiskConfig(
-        max_position_btc=qty_btc,
-        max_notional_usd=Decimal("100000"),
-        max_daily_loss_usd=Decimal("100000"),
-        max_orders_per_hour=10000,
-        min_seconds_between_orders=0,
-        allow_entries=True,
-    )
     strategy = SlowTrendV1(strategy_cfg)
     risk = RiskGate(risk_cfg)
     state = RiskState()
@@ -752,6 +824,14 @@ def run_backtest(
         intent = strategy.evaluate(window, pos)
         if intent is not None:
             intents += 1
+            intent = intent.model_copy(
+                update={
+                    "client_order_id": (
+                        f"backtest-strategy-{intents:08d}-{index + 1:08d}-{intent.side.value}"
+                    ),
+                    "ts": bar.close_time,
+                }
+            )
             decision = risk.evaluate(
                 intent,
                 pos,
@@ -966,6 +1046,8 @@ def run_backtest(
     )
 
     return BacktestResult(
+        input_candles=input_candles,
+        provenance=provenance,
         fills=fills,
         events=events,
         equity_curve=equity_curve,
@@ -1025,10 +1107,29 @@ def write_backtest_report(
     result: BacktestResult,
     out_dir: str | Path,
     run_id: str,
+    *,
+    repository_root: str | Path | None = None,
+    source_revision: SourceRevision | None = None,
 ) -> dict[str, Path]:
-    """Write strategy, lifecycle, benchmark, accounting, and equity artifacts."""
+    """Write one immutable, checksummed, self-contained backtest report."""
+    run_id = validate_run_id(run_id)
+    if result.provenance.artifact_schema_version != SCHEMA_VERSION:
+        raise BacktestReproducibilityError("result artifact schema version is not current")
+    if len(result.input_candles) != result.provenance.input_bar_count or result.bars != len(
+        result.input_candles
+    ):
+        raise BacktestReproducibilityError("result input candle count no longer matches provenance")
+    if fingerprint_candles(result.input_candles) != result.provenance.input_data_sha256:
+        raise BacktestReproducibilityError("result input candles no longer match provenance")
+    if fingerprint_config(result.provenance.resolved_config) != (
+        result.provenance.resolved_config_sha256
+    ):
+        raise BacktestReproducibilityError("result resolved config no longer matches provenance")
+    revision = source_revision or resolve_source_revision(repository_root or Path.cwd())
     out = Path(out_dir) / run_id
-    out.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.mkdir(exist_ok=False)
+    input_data_path = out / "input_candles.jsonl"
     summary_path = out / "summary.json"
     events_path = out / "events.jsonl"
     fills_path = out / "fills.jsonl"
@@ -1040,9 +1141,32 @@ def write_backtest_report(
     performance_path = out / "performance.jsonl"
     performance_observations_path = out / "performance_observations.jsonl"
     equity_path = out / "equity.jsonl"
+    manifest_path = out / "manifest.json"
 
-    summary_path.write_text(
-        json.dumps(result.summary(), indent=2, default=str) + "\n", encoding="utf-8"
+    with input_data_path.open("w", encoding="utf-8") as file:
+        for sequence, candle in enumerate(result.input_candles, start=1):
+            file.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "input_candle",
+                        "run_id": run_id,
+                        "sequence": sequence,
+                        "candle": candle_payload(candle),
+                    },
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+
+    summary_payload = {
+        **result.summary(),
+        "run_id": run_id,
+        "source_revision": revision.model_dump(mode="json"),
+        "code_identity_reproducible": revision.reproducible,
+    }
+    summary_path.write_bytes(
+        pretty_json_bytes(summary_payload),
     )
     with events_path.open("w", encoding="utf-8") as file:
         for event in result.events:
@@ -1321,7 +1445,8 @@ def write_backtest_report(
                 "stage": pt.stage.value,
             }
             f.write(json.dumps(row, default=str) + "\n")
-    return {
+    artifact_paths = {
+        "input_data": input_data_path,
         "summary": summary_path,
         "events": events_path,
         "fills": fills_path,
@@ -1334,3 +1459,17 @@ def write_backtest_report(
         "performance_observations": performance_observations_path,
         "equity": equity_path,
     }
+    artifacts: tuple[ArtifactIntegrity, ...] = tuple(
+        build_artifact_integrity(name, path) for name, path in artifact_paths.items()
+    )
+    manifest = BacktestArtifactManifest(
+        schema_version=SCHEMA_VERSION,
+        run_id=run_id,
+        provenance=result.provenance,
+        source_revision=revision,
+        code_identity_reproducible=revision.reproducible,
+        evidence_roles=dict(REQUIRED_EVIDENCE_ROLES),
+        artifacts=artifacts,
+    )
+    manifest_path.write_bytes(pretty_json_bytes(manifest.model_dump(mode="json")))
+    return {**artifact_paths, "manifest": manifest_path}
