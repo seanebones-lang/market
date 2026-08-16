@@ -44,6 +44,9 @@ G2.7 adds cash, peak-cost-basis-matched buy-and-hold, and periodic-DCA comparato
 execution and cost assumptions, plus absolute and net-P&L-over-maximum-drawdown comparisons.
 G2.8 adds exact descriptive performance statistics and aligned benchmark-alpha estimates with
 explicit hourly sampling, 8,760-period annualization, and undefined-metric statuses. These metrics
-do not make the short saved reports valid or establish statistical significance.
+do not make the short saved reports valid or establish statistical significance. G2.9 completes
+the named golden/failure acceptance matrix for accounting, anti-look-ahead timing, directional
+spread/slippage, partial executions, next-open insufficient cash, and terminal fees. It proves the
+current mechanics against hand-calculated fixtures; it does not test an investment hypothesis.
 The next valid result begins only after the complete G2 gate passes and uses the verified G1
 manifest. Profitability can never be guaranteed.

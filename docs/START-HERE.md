@@ -43,7 +43,8 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Continue G2.9 with the remaining broader golden accounting and failure fixtures.
-2. Build G3 walk-forward research on the verified G1 dataset segments.
-3. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
-4. Create a Robinhood credential with read actions only after the G5 read-only adapter gate begins.
+1. Continue G2.10 with complete reproducible run identity and artifact provenance.
+2. Record the complete G2 gate review after G2.10 passes.
+3. Build G3 walk-forward research on the verified G1 dataset segments.
+4. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
+5. Create a Robinhood credential with read actions only after the G5 read-only adapter gate begins.

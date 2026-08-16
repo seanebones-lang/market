@@ -2,11 +2,11 @@
 
 ## Current gate status
 
-G2.1 through G2.8 are implemented. The engine no longer fills a decision at the close that produced
+G2.1 through G2.9 are implemented. The engine no longer fills a decision at the close that produced
 its signal, every run declares one of two deterministic next-open execution models,
 venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate, and every transaction
 fee is explicitly defined per execution fill. End-of-data liquidation is now a visible, fully
-costed sell fill that leaves the reported portfolio flat. The rest of G2 remains incomplete, so
+costed sell fill that leaves the reported portfolio flat. G2.10 remains incomplete, so
 backtest output is still non-promotable. Every fill now posts through an immutable accounting
 journal, and every mark distinguishes mid-marked equity from costed net liquidation value. Every
 run now also carries three cost-equivalent passive benchmarks.
@@ -364,10 +364,33 @@ capture the unseen close-to-open jump. It also asserts this event order:
 signal bar_close < decision_accepted < next bar_open < order_eligible < fill
 ```
 
+## G2.9 golden and failure matrix
+
+The G2.9 acceptance matrix binds each required behavior to exact, deterministic tests:
+
+| Requirement | Proof |
+|---|---|
+| Golden accounting | Hand-calculated weighted-average buys, partial sale, full sale, marks, and exact Robinhood v2 journal reconciliation |
+| Next-bar anti-look-ahead | The `$12` signal close cannot fill before the following `$20` open |
+| Spread/slippage direction | Buys execute above the synthetic ask and sells below the synthetic bid |
+| Partial fills | Multiple executions, remaining quantity, allocated basis/entry fees, closed trades, and round trips reconcile exactly |
+| Insufficient cash | A buy affordable at the signal close but unaffordable after a next-open gap is rejected without any account mutation |
+| Terminal fee | The final sell is an explicit fill and pays the full configured per-fill fee on terminal executed notional |
+
+The event engine does not invent partial executions from hourly OHLC data. Partial-fill acceptance
+therefore feeds deterministic broker-like execution streams into the lifecycle and accounting
+analyzers. Live execution normalization and recovery remain G6 work.
+
+For the insufficient-cash boundary, the golden fixture starts with `$15`, produces a one-BTC buy
+signal at a `$12` close, and gaps to a `$20` next open. The risk-approved request becomes
+unaffordable at execution and emits `execution_rejected` with reason
+`insufficient_cash_at_execution`. It produces zero fills, fees, inventory, P&L, or terminal orders,
+and the journal remains the single `$15` opening balance.
+
 ## Known invalidities still open
 
 - Robinhood profile rates remain configured research assumptions, not account-observed costs. A
   future pre-trade adapter must read or verify the applicable account tier.
-- Broader golden/failure fixtures and fully reproducible run identity remain open.
+- Fully reproducible run identity remains open in G2.10.
 
 No result from this intermediate engine can support a profitability or live-money decision.

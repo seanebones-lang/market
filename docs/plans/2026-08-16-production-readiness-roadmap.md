@@ -232,16 +232,16 @@ reconcilable.
   absolute and risk-adjusted performance.
 - [x] **G2.8** Report turnover, exposure time, drawdown duration, volatility, Sharpe/Sortino with
   stated annualization, profit factor, expectancy, fee drag, and benchmark alpha.
-- [ ] **G2.9** Add golden accounting tests, next-bar anti-look-ahead tests, spread/slippage direction
+- [x] **G2.9** Add golden accounting tests, next-bar anti-look-ahead tests, spread/slippage direction
   tests, partial-fill tests, insufficient-cash tests, and terminal-fee tests.
 - [ ] **G2.10** Make run artifacts reproducible: code revision, data checksum, config, random seed,
   engine version, costs, trades, equity curve, and metrics.
 
 **Increment record (2026-08-16):** `G2.1: PASS`; `G2.2: PASS`; `G2.3: PASS`; `G2.3a: PASS`;
-`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`; `G2.7: PASS`; `G2.8: PASS`. The future-jump fixture proves
-next-open fills and end-of-data decisions expire unfilled. Directional tests prove buys cross the
-synthetic ask and
-slip upward while sells cross the synthetic bid and slip downward. Venue-profile tests keep
+`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`; `G2.7: PASS`; `G2.8: PASS`; `G2.9: PASS`. The future-jump
+fixture proves next-open fills and end-of-data decisions expire unfilled. Directional tests prove
+buys cross the synthetic ask and slip upward while sells cross the synthetic bid and slip downward.
+Venue-profile tests keep
 Robinhood v1 spread-only treatment separate from v2 exchange-taker fee assumptions. Per-fill tests
 prove equal buy and sell notionals each pay the full configured fee rate, and CLI tests prove
 ambiguous flags are gone. Terminal-liquidation tests prove remaining inventory becomes a visible,
@@ -253,8 +253,12 @@ reconcile to the accounting journal. Cost-equivalent fixtures compare the strate
 peak-cost-basis-matched buy-and-hold, and periodic DCA in absolute dollars and net-P&L-over-maximum-
 drawdown terms. Exact performance fixtures prove turnover, exposure, drawdown duration, sample
 volatility, annualized Sharpe/Sortino, fee-aware trade statistics, explicit fee drag, and OLS alpha
-under a declared hourly contract. See the G2.1 through G2.8 files under `docs/evidence/`. This is
-not a G2 gate pass; G2.9-G2.10 and all live-money stages remain locked.
+under a declared hourly contract. The G2.9 acceptance matrix maps independently hand-calculated
+accounting, timing, directional-cost, partial-execution, insufficient-cash, and terminal-fee proofs
+to deterministic tests. A gap-up case
+proves an order that becomes unaffordable at its eligible next open is rejected without a fill or
+account mutation. See the G2.1 through G2.9 files under `docs/evidence/`. This is not a G2 gate
+pass; G2.10 and all live-money stages remain locked.
 
 ### Exit criteria
 

@@ -365,6 +365,55 @@ def test_future_jump_cannot_fill_at_signal_close():
     assert terminal_fill_event.client_order_id == terminal_fill.client_order_id
 
 
+def test_gap_up_rejects_order_that_becomes_unaffordable_at_execution():
+    candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
+    result = run_backtest(
+        candles,
+        starting_cash_usd=Decimal("15"),
+        qty_btc=Decimal("1"),
+        strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
+        source="fixture:future-jump",
+    )
+
+    # The $12 signal close makes one BTC affordable to the risk gate, but the next
+    # bar opens at $20. Execution must reject the full order instead of creating a
+    # partial fill, negative cash, inventory, fees, or a terminal liquidation.
+    assert result.intents == 1
+    assert result.allowed == 1
+    assert result.blocked == 1
+    assert result.fills == []
+
+    related = [event for event in result.events if event.client_order_id is not None]
+    assert [event.event_type for event in related] == [
+        BacktestEventType.DECISION_ACCEPTED,
+        BacktestEventType.ORDER_ELIGIBLE,
+        BacktestEventType.EXECUTION_REJECTED,
+    ]
+    rejection = related[-1]
+    assert rejection.details["reason"] == "insufficient_cash_at_execution"
+    assert rejection.details["reference_open_usd"] == "20"
+    assert rejection.details["fill_price_usd"] == "20"
+
+    assert result.lifecycle.order_count == 1
+    assert result.lifecycle.execution_rejected_order_count == 1
+    assert result.lifecycle.unfilled_order_count == 1
+    assert result.lifecycle.execution_count == 0
+    assert result.lifecycle.closed_trade_count == 0
+    assert result.lifecycle.round_trip_count == 0
+
+    assert len(result.accounting_journal) == 1
+    opening = result.accounting_journal[0]
+    assert opening.cash_after_usd == Decimal("15")
+    assert opening.inventory_after_btc == 0
+    assert opening.cumulative_fees_after_usd == 0
+    assert opening.accounting_identity_residual_usd == 0
+    assert result.final_cash_usd == Decimal("15")
+    assert result.final_inventory_btc == 0
+    assert result.cumulative_fees_usd == 0
+    assert result.net_liquidation_pnl_after_fees_usd == 0
+    assert result.terminal_liquidation_fills == 0
+
+
 def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
     candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
     result = run_backtest(

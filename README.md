@@ -59,8 +59,10 @@ matched-notional buy-and-hold, and periodic-DCA benchmarks with absolute and dra
 comparisons. G2.8 now reports turnover,
 bar-close exposure, drawdown duration, hourly/annualized volatility, Sharpe/Sortino, fee-aware
 profit factor and expectancy, explicit fee drag, and benchmark-relative OLS alpha under a declared
-hourly crypto annualization contract. Broader golden tests and reproducible run identity remain
-open, so the backtester remains exploratory.
+hourly crypto annualization contract. G2.9 closes the named golden/failure acceptance matrix,
+including a next-open gap-up that rejects an order which became unaffordable without mutating cash,
+inventory, fees, or the journal. Reproducible run identity remains open in G2.10, so the backtester
+remains exploratory.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.
