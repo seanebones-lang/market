@@ -53,8 +53,10 @@ exchange-taker fee assumptions. G2.3a defines every transaction fee per executio
 the old ambiguous CLI flags. G2.4 now represents end-of-data liquidation as a real, fully costed
 sell fill and ends each liquidated run flat. G2.5 routes every fill through an immutable accounting
 journal and separates cost basis, gross realized/unrealized P&L, fees, marked equity, and net
-liquidation value. The backtester remains exploratory until the rest of G2 implements lifecycle
-metrics, benchmarks, statistics, and reproducible run identity.
+liquidation value. G2.6 now distinguishes orders, executions, partial fills, closed trades,
+flat-to-flat round trips, fee-aware outcomes, and open inventory. The backtester remains
+exploratory until the rest of G2 implements benchmarks, statistics, broader golden tests, and
+reproducible run identity.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.

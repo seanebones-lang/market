@@ -403,6 +403,17 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         f"allowed={result.allowed} blocked={result.blocked}"
     )
     console.print(
+        f"orders={result.lifecycle.order_count} "
+        f"executions={result.lifecycle.execution_count} "
+        f"partial_fill_executions={result.lifecycle.partial_fill_execution_count} "
+        f"round_trips={result.lifecycle.round_trip_count} "
+        f"closed_trades={result.lifecycle.closed_trade_count} "
+        f"wins={result.lifecycle.winning_closed_trade_count} "
+        f"losses={result.lifecycle.losing_closed_trade_count} "
+        f"breakeven={result.lifecycle.breakeven_closed_trade_count} "
+        f"open_inventory_btc={result.lifecycle.open_inventory_btc}"
+    )
+    console.print(
         f"terminal_liquidation_model={result.terminal_liquidation_model.value} "
         f"terminal_liquidation_fills={result.terminal_liquidation_fills} "
         f"terminal_liquidation_qty_btc={result.terminal_liquidation_qty_btc} "
@@ -433,6 +444,13 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     console.print(f"       {paths['events']} ({len(result.events)} rows)")
     console.print(f"       {paths['fills']} ({len(result.fills)} rows)")
     console.print(f"       {paths['accounting']} ({len(result.accounting_journal)} rows)")
+    lifecycle_rows = (
+        1
+        + len(result.lifecycle.orders)
+        + len(result.lifecycle.closed_trades)
+        + len(result.lifecycle.round_trips)
+    )
+    console.print(f"       {paths['lifecycle']} ({lifecycle_rows} rows)")
     console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")
     return 0
 

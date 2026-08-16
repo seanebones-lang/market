@@ -24,12 +24,19 @@ from market.backtest.costs import (
     VenueCostProfile,
     resolve_venue_cost,
 )
+from market.backtest.lifecycle import (
+    LifecycleAnalysis,
+    OrderDisposition,
+    OrderOrigin,
+    OrderRequest,
+    analyze_lifecycle,
+)
 from market.data.quality import require_clean_candles
 from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Side
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 class ExecutionModel(str, Enum):
@@ -258,6 +265,7 @@ class BacktestResult:
     events: list[BacktestEvent] = field(default_factory=list)
     equity_curve: list[EquityPoint] = field(default_factory=list)
     accounting_journal: list[PortfolioJournalEntry] = field(default_factory=list)
+    lifecycle: LifecycleAnalysis = field(default_factory=LifecycleAnalysis)
     final_inventory_btc: Decimal = Decimal("0")
     final_cash_usd: Decimal = Decimal("0")
     starting_cash_usd: Decimal = Decimal("0")
@@ -371,6 +379,7 @@ class BacktestResult:
             "position_before_terminal_liquidation_btc": str(
                 self.position_before_terminal_liquidation_btc
             ),
+            **self.lifecycle.summary(),
         }
 
 
@@ -416,6 +425,11 @@ def run_backtest(
             net_liquidation_value_usd=starting_cash_usd,
             max_marked_equity_usd=starting_cash_usd,
             accounting_journal=list(account.journal),
+            lifecycle=analyze_lifecycle(
+                requests=[],
+                fills=[],
+                accounting_journal=account.journal,
+            ),
             source=source,
             venue_cost_profile=venue_cost_assumptions.profile,
             venue=cost_metadata.venue,
@@ -457,6 +471,8 @@ def run_backtest(
     max_dd = Decimal("0")
     pending: PendingOrder | None = None
     final_snapshot: PortfolioSnapshot | None = None
+    lifecycle_requests: list[OrderRequest] = []
+    unfilled_dispositions: dict[str, OrderDisposition] = {}
 
     def emit(
         event_type: BacktestEventType,
@@ -602,6 +618,9 @@ def run_backtest(
                 state.last_order_ts = bar.ts
                 state.order_timestamps.append(bar.ts)
             else:
+                unfilled_dispositions[pending.intent.client_order_id] = (
+                    OrderDisposition.EXECUTION_REJECTED
+                )
                 emit(
                     BacktestEventType.EXECUTION_REJECTED,
                     ts=bar_ts,
@@ -696,6 +715,14 @@ def run_backtest(
             else:
                 allowed += 1
                 eligible_bar_ts = bar.close_time.isoformat()
+                lifecycle_requests.append(
+                    OrderRequest(
+                        client_order_id=decision.intent.client_order_id,
+                        origin=OrderOrigin.STRATEGY,
+                        side=decision.intent.side,
+                        requested_quantity_btc=decision.intent.qty_btc,
+                    )
+                )
                 pending = PendingOrder(
                     intent=decision.intent,
                     signal_bar_ts=bar_ts,
@@ -721,6 +748,7 @@ def run_backtest(
     end_of_data_orders = 0
     if pending is not None:
         end_of_data_orders = 1
+        unfilled_dispositions[pending.intent.client_order_id] = OrderDisposition.EXPIRED
         emit(
             BacktestEventType.ORDER_EXPIRED,
             ts=candles[-1].close_time.isoformat(),
@@ -742,6 +770,14 @@ def run_backtest(
         terminal_ts = terminal_bar.close_time.isoformat()
         terminal_bar_ts = terminal_bar.ts.isoformat()
         terminal_client_order_id = f"terminal-liquidation-{terminal_ts}"
+        lifecycle_requests.append(
+            OrderRequest(
+                client_order_id=terminal_client_order_id,
+                origin=OrderOrigin.TERMINAL_LIQUIDATION,
+                side=Side.SELL,
+                requested_quantity_btc=position_before_terminal_liquidation,
+            )
+        )
         terminal_price = calculate_terminal_liquidation_price(
             execution_assumptions,
             terminal_bar.close,
@@ -843,12 +879,19 @@ def run_backtest(
 
     if final_snapshot is None:
         raise RuntimeError("nonempty backtest must produce a final accounting snapshot")
+    lifecycle = analyze_lifecycle(
+        requests=lifecycle_requests,
+        fills=fills,
+        accounting_journal=account.journal,
+        unfilled_dispositions=unfilled_dispositions,
+    )
 
     return BacktestResult(
         fills=fills,
         events=events,
         equity_curve=equity_curve,
         accounting_journal=list(account.journal),
+        lifecycle=lifecycle,
         final_inventory_btc=account.inventory_btc,
         final_cash_usd=account.cash_usd,
         starting_cash_usd=starting_cash_usd,
@@ -902,13 +945,14 @@ def write_backtest_report(
     out_dir: str | Path,
     run_id: str,
 ) -> dict[str, Path]:
-    """Write summary, events, fills, accounting journal, and marks under ``out_dir/run_id``."""
+    """Write summary, events, fills, accounting, lifecycle, and marks under a run directory."""
     out = Path(out_dir) / run_id
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / "summary.json"
     events_path = out / "events.jsonl"
     fills_path = out / "fills.jsonl"
     accounting_path = out / "accounting.jsonl"
+    lifecycle_path = out / "lifecycle.jsonl"
     equity_path = out / "equity.jsonl"
 
     summary_path.write_text(
@@ -952,6 +996,68 @@ def write_backtest_report(
                 **payload,
             }
             f.write(json.dumps(row, default=str) + "\n")
+    with lifecycle_path.open("w", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "type": "lifecycle_summary",
+                    "run_id": run_id,
+                    **result.lifecycle.summary(),
+                }
+            )
+            + "\n"
+        )
+        for order in result.lifecycle.orders:
+            payload = asdict(order)
+            payload["origin"] = order.origin.value
+            payload["side"] = order.side.value
+            payload["state"] = order.state.value
+            payload["unfilled_disposition"] = (
+                order.unfilled_disposition.value if order.unfilled_disposition is not None else None
+            )
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "order_lifecycle",
+                        "run_id": run_id,
+                        **payload,
+                    },
+                    default=str,
+                )
+                + "\n"
+            )
+        for trade in result.lifecycle.closed_trades:
+            payload = asdict(trade)
+            payload["outcome"] = trade.outcome.value
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "closed_trade",
+                        "run_id": run_id,
+                        **payload,
+                    },
+                    default=str,
+                )
+                + "\n"
+            )
+        for trip in result.lifecycle.round_trips:
+            payload = asdict(trip)
+            payload["outcome"] = trip.outcome.value
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "round_trip",
+                        "run_id": run_id,
+                        **payload,
+                    },
+                    default=str,
+                )
+                + "\n"
+            )
     with equity_path.open("w", encoding="utf-8") as f:
         for pt in result.equity_curve:
             row = {
@@ -987,5 +1093,6 @@ def write_backtest_report(
         "events": events_path,
         "fills": fills_path,
         "accounting": accounting_path,
+        "lifecycle": lifecycle_path,
         "equity": equity_path,
     }

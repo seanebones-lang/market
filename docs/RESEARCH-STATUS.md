@@ -38,6 +38,7 @@ the partially rebuilt engine. G2.1 now enforces next-bar-open eligibility, G2.2 
 bid/ask and adverse-slippage models, and G2.3 supplies route-specific Robinhood cost contracts. The
 G2.3a schema defines each transaction fee per executed fill, and G2.4 makes terminal liquidation a
 fully costed sell fill that leaves new runs flat. G2.5 adds an immutable portfolio journal and
-separate gross P&L, fee, marked-equity, and net-liquidation accounts. The next valid result begins
-only after the complete G2 gate passes and uses the verified G1 manifest. Profitability can never
-be guaranteed.
+separate gross P&L, fee, marked-equity, and net-liquidation accounts. G2.6 adds explicit order,
+execution, partial-fill, closed-trade, round-trip, outcome, and open-inventory lifecycle metrics.
+The next valid result begins only after the complete G2 gate passes and uses the verified G1
+manifest. Profitability can never be guaranteed.
