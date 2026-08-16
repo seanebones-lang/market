@@ -99,6 +99,22 @@ def main(argv: list[str] | None = None) -> int:
     bt_p.add_argument("--slow", type=int, default=26)
     bt_p.add_argument("--fee-bps", default="5", help="Round-trip fee model in bps per fill")
     bt_p.add_argument(
+        "--execution-model",
+        choices=["next_bar_open", "next_bar_open_bid_ask"],
+        default="next_bar_open",
+        help="Declared next-bar execution model",
+    )
+    bt_p.add_argument(
+        "--quoted-spread-bps-assumption",
+        default="0",
+        help="Assumed full bid-ask spread in bps, centered on the next open",
+    )
+    bt_p.add_argument(
+        "--adverse-slippage-bps-assumption",
+        default="0",
+        help="Assumed adverse slippage in bps from the side-specific synthetic touch",
+    )
+    bt_p.add_argument(
         "--fetch",
         action="store_true",
         help="Fetch fresh Coinbase BTC-USD candles before backtest (actual market data)",
@@ -277,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
 def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     from datetime import datetime
 
-    from market.backtest.engine import run_backtest, write_backtest_report
+    from market.backtest.engine import ExecutionModel, run_backtest, write_backtest_report
     from market.data.candles import fetch_coinbase_candles, load_candles_csv, save_candles_csv
     from market.strategy.slow_trend import SlowTrendConfig
 
@@ -326,6 +342,9 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         fee_bps=Decimal(args.fee_bps),
         strategy_cfg=cfg,
         source=source,
+        execution_model=ExecutionModel(args.execution_model),
+        quoted_spread_bps_assumption=Decimal(args.quoted_spread_bps_assumption),
+        adverse_slippage_bps_assumption=Decimal(args.adverse_slippage_bps_assumption),
     )
 
     run_id = args.run_id or datetime.now(UTC).strftime("bt_%Y%m%dT%H%M%SZ")
@@ -336,6 +355,11 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
 
     console.print("[bold]BACKTEST (actual data)[/bold]")
     console.print(f"source={result.source}")
+    console.print(
+        f"execution_model={result.execution_model.value} "
+        f"quoted_spread_bps_assumption={result.quoted_spread_bps_assumption} "
+        f"adverse_slippage_bps_assumption={result.adverse_slippage_bps_assumption}"
+    )
     console.print(
         f"bars={result.bars} range={result.first_ts} → {result.last_ts} "
         f"strategy=slow_trend {result.fast_ema}/{result.slow_ema}"

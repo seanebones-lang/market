@@ -2,14 +2,19 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from market.backtest.engine import (
     BacktestEventType,
+    ExecutionAssumptions,
     ExecutionModel,
+    calculate_execution_price,
     run_backtest,
     write_backtest_report,
 )
 from market.data.candles import load_candles_csv, save_candles_csv
-from market.domain.models import Candle
+from market.domain.models import Candle, Side
 from market.strategy.slow_trend import SlowTrendConfig
 
 FUTURE_JUMP_FIXTURE = Path(__file__).parent / "fixtures" / "backtest" / "future_jump.csv"
@@ -83,8 +88,82 @@ def test_write_backtest_report(tmp_path: Path):
     assert "pnl_usd" in text
     assert "schema_version" in text
     assert '"execution_model": "next_bar_open"' in text
+    assert '"quoted_spread_bps_assumption": "0"' in text
+    assert '"adverse_slippage_bps_assumption": "0"' in text
     event_lines = paths["events"].read_text().splitlines()
     assert len(event_lines) == len(res.events)
+
+
+def test_next_open_execution_price_has_no_synthetic_cost():
+    price = calculate_execution_price(
+        ExecutionAssumptions(),
+        Side.BUY,
+        Decimal("100"),
+    )
+
+    assert price.reference_open_usd == Decimal("100")
+    assert price.synthetic_bid_usd == Decimal("100")
+    assert price.synthetic_ask_usd == Decimal("100")
+    assert price.pre_slippage_touch_usd == Decimal("100")
+    assert price.fill_price_usd == Decimal("100")
+
+
+def test_bid_ask_execution_is_adverse_for_buys_and_sells():
+    assumptions = ExecutionAssumptions(
+        model=ExecutionModel.NEXT_BAR_OPEN_BID_ASK,
+        quoted_spread_bps_assumption=Decimal("20"),
+        adverse_slippage_bps_assumption=Decimal("10"),
+    )
+
+    buy = calculate_execution_price(assumptions, Side.BUY, Decimal("100"))
+    sell = calculate_execution_price(assumptions, Side.SELL, Decimal("100"))
+
+    assert buy.synthetic_bid_usd == Decimal("99.900")
+    assert buy.synthetic_ask_usd == Decimal("100.100")
+    assert buy.pre_slippage_touch_usd == Decimal("100.100")
+    assert buy.fill_price_usd == Decimal("100.200100")
+    assert sell.pre_slippage_touch_usd == Decimal("99.900")
+    assert sell.fill_price_usd == Decimal("99.800100")
+    assert buy.fill_price_usd > buy.synthetic_ask_usd > buy.reference_open_usd
+    assert sell.reference_open_usd > sell.synthetic_bid_usd > sell.fill_price_usd
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"quoted_spread_bps_assumption": Decimal("-1")}, "must be >= 0"),
+        ({"quoted_spread_bps_assumption": Decimal("20000")}, "must be < 20000"),
+        ({"adverse_slippage_bps_assumption": Decimal("-1")}, "must be >= 0"),
+        ({"adverse_slippage_bps_assumption": Decimal("10000")}, "must be < 10000"),
+        ({"quoted_spread_bps_assumption": Decimal("NaN")}, "finite number"),
+        ({"adverse_slippage_bps_assumption": Decimal("Infinity")}, "finite number"),
+        (
+            {
+                "model": ExecutionModel.NEXT_BAR_OPEN,
+                "quoted_spread_bps_assumption": Decimal("1"),
+            },
+            "requires zero spread and slippage assumptions",
+        ),
+    ],
+)
+def test_execution_assumptions_reject_invalid_values(changes: dict[str, object], message: str):
+    values: dict[str, object] = {"model": ExecutionModel.NEXT_BAR_OPEN_BID_ASK}
+    values.update(changes)
+    with pytest.raises(ValidationError, match=message):
+        ExecutionAssumptions.model_validate(values)
+
+
+def test_execution_assumptions_reject_float():
+    with pytest.raises((TypeError, ValidationError), match="float not allowed"):
+        ExecutionAssumptions(
+            model=ExecutionModel.NEXT_BAR_OPEN_BID_ASK,
+            quoted_spread_bps_assumption=1.0,  # type: ignore[arg-type]
+        )
+
+
+def test_execution_price_rejects_nonpositive_reference():
+    with pytest.raises(ValueError, match="must be > 0"):
+        calculate_execution_price(ExecutionAssumptions(), Side.BUY, Decimal("0"))
 
 
 def test_future_jump_cannot_fill_at_signal_close():
@@ -132,6 +211,41 @@ def test_future_jump_cannot_fill_at_signal_close():
     )
     assert signal_close.sequence < related[0].sequence < next_open.sequence
     assert next_open.sequence < related[1].sequence < related[2].sequence
+
+
+def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
+    candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
+    result = run_backtest(
+        candles,
+        starting_usd=Decimal("1000"),
+        qty_btc=Decimal("1"),
+        fee_bps=Decimal("0"),
+        strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
+        source="fixture:future-jump",
+        execution_model=ExecutionModel.NEXT_BAR_OPEN_BID_ASK,
+        quoted_spread_bps_assumption=Decimal("20"),
+        adverse_slippage_bps_assumption=Decimal("10"),
+    )
+
+    fill = result.fills[0]
+    assert fill.price_usd == Decimal("20.040020")
+    assert fill.price_usd > candles[5].open
+    assert fill.raw["reference_open_usd"] == "20"
+    assert fill.raw["synthetic_bid_usd"] == "19.980"
+    assert fill.raw["synthetic_ask_usd"] == "20.020"
+    assert fill.raw["pre_slippage_touch_usd"] == "20.020"
+    assert fill.raw["fill_price_usd"] == "20.040020"
+    assert fill.raw["quoted_spread_bps_assumption"] == "20"
+    assert fill.raw["adverse_slippage_bps_assumption"] == "10"
+    assert result.summary()["execution_model"] == "next_bar_open_bid_ask"
+    assert result.summary()["quoted_spread_bps_assumption"] == "20"
+    assert result.summary()["adverse_slippage_bps_assumption"] == "10"
+
+    fill_event = next(
+        event for event in result.events if event.event_type == BacktestEventType.FILL
+    )
+    assert fill_event.details["reference_open_usd"] == "20"
+    assert fill_event.details["fill_price_usd"] == "20.040020"
 
 
 def test_signal_on_final_bar_expires_without_fill():
