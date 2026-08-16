@@ -2,11 +2,12 @@
 
 ## Current gate status
 
-G2.1 through G2.3a are implemented. The engine no longer fills a decision at the close that produced
+G2.1 through G2.4 are implemented. The engine no longer fills a decision at the close that produced
 its signal, every run declares one of two deterministic next-open execution models,
 venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate, and every transaction
-fee is explicitly defined per execution fill. The rest of G2 remains incomplete, so backtest output
-is still non-promotable.
+fee is explicitly defined per execution fill. End-of-data liquidation is now a visible, fully
+costed sell fill that leaves the reported portfolio flat. The rest of G2 remains incomplete, so
+backtest output is still non-promotable.
 
 ## Event order
 
@@ -68,7 +69,8 @@ Example:
 At a `$20` next open, this produces a `$19.980` synthetic bid, `$20.020` synthetic ask, and
 `$20.040020` simulated buy fill. Summary, event, and fill artifacts record the reference open,
 both synthetic touches, pre-slippage touch, fill price, and named assumptions. Artifact schema
-version 5 includes this contract together with the G2.3/G2.3a cost fields.
+version 6 includes this contract together with the G2.3/G2.3a cost fields and G2.4 terminal
+liquidation fields.
 
 ## Venue cost profiles
 
@@ -127,9 +129,47 @@ The CLI rejects both removed ambiguous flags:
 --transaction-fee-bps-assumption
 ```
 
-Schema version 5 records `fee_calculation_basis=executed_notional_per_fill`, the configured
+Schema version 6 records `fee_calculation_basis=executed_notional_per_fill`, the configured
 `transaction_fee_bps_per_fill_assumption`, and the per-fill rate applied in summary, event, and fill
 artifacts.
+
+## Terminal liquidation contract
+
+After the final bar closes and any last-bar decision is expired, G2.4 liquidates remaining BTC with
+an explicit sell request and fill:
+
+```text
+final bar_close
+  -> optional order_expired for a decision with no eligible next bar
+  -> terminal_liquidation_requested
+  -> sell fill
+  -> post_terminal_liquidation equity point
+```
+
+The final close is a synthetic reference mid. A `next_bar_open` run uses
+`terminal_liquidation_model=last_bar_close` and sells at that close. A
+`next_bar_open_bid_ask` run uses `last_bar_close_bid_ask`: it derives the final synthetic bid from
+the same full-spread assumption and applies the same adverse sell slippage used by ordinary fills.
+The venue cost profile then charges its per-fill rate against the terminal fill's executed
+notional. Robinhood v1 therefore embeds terminal cost in the synthetic spread with zero separate
+fee, while v2 applies its declared taker-fee assumption to the terminal fill.
+
+Terminal artifacts record the final reference close, synthetic bid and ask, pre-slippage touch,
+fill price, executed quantity, fee, venue profile, and reason
+`terminal_liquidation_end_of_data`. Summary fields distinguish pre-liquidation inventory from the
+actual final position:
+
+```text
+position_before_terminal_liquidation_btc
+terminal_liquidation_fills
+terminal_liquidation_qty_btc
+terminal_liquidation_fee_usd
+final_position_btc
+```
+
+When there is inventory, `final_position_btc` is zero and the last equity artifact has
+`stage=post_terminal_liquidation`. When there is no inventory, no synthetic terminal order or fill
+is created.
 
 ## Anti-look-ahead proof
 
@@ -145,7 +185,6 @@ signal bar_close < decision_accepted < next bar_open < order_eligible < fill
 
 - Robinhood profile rates remain configured research assumptions, not account-observed costs. A
   future pre-trade adapter must read or verify the applicable account tier.
-- Terminal inventory is still converted to cash without a visible costed fill; G2.4 remains open.
 - Cash, inventory, cost basis, realized/unrealized P&L, and liquidation value are not yet governed
   by the G2.5 accounting journal.
 - Trade lifecycle counts, benchmarks, statistics, and fully reproducible run identity remain open.

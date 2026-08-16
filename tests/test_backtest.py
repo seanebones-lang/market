@@ -9,9 +9,12 @@ from pydantic import ValidationError
 from market.backtest.costs import VenueCostProfile
 from market.backtest.engine import (
     BacktestEventType,
+    EquityPointStage,
     ExecutionAssumptions,
     ExecutionModel,
+    TerminalLiquidationModel,
     calculate_execution_price,
+    calculate_terminal_liquidation_price,
     run_backtest,
     write_backtest_report,
 )
@@ -67,11 +70,20 @@ def test_backtest_runs_and_accounts():
     assert res.intents == 1
     assert res.allowed == 1
     assert res.blocked == 0
-    assert len(res.fills) == 1
+    assert len(res.fills) == 2
+    assert [fill.side for fill in res.fills] == [Side.BUY, Side.SELL]
+    assert res.position_before_terminal_liquidation_btc == Decimal("0.001")
+    assert res.final_position_btc == 0
+    assert res.terminal_liquidation_fills == 1
+    assert res.terminal_liquidation_qty_btc == Decimal("0.001")
+    assert res.terminal_liquidation_fee_usd == res.fills[-1].fee_usd
     assert res.final_usd > res.starting_usd
     assert res.bars == 100
     assert res.equity_curve
-    assert res.max_equity_usd == res.final_usd
+    assert res.max_equity_usd == res.final_usd + res.terminal_liquidation_fee_usd
+    assert res.equity_curve[-1].stage == EquityPointStage.POST_TERMINAL_LIQUIDATION
+    assert res.equity_curve[-1].equity_usd == res.final_usd
+    assert res.equity_curve[-1].btc == 0
 
 
 def test_write_backtest_report(tmp_path: Path):
@@ -98,6 +110,9 @@ def test_write_backtest_report(tmp_path: Path):
     assert '"fee_calculation_basis": "executed_notional_per_fill"' in text
     assert '"transaction_fee_bps_per_fill_assumption": "5"' in text
     assert '"transaction_fee_bps_per_fill_applied": "5"' in text
+    assert '"schema_version": 6' in text
+    assert '"terminal_liquidation_model": "last_bar_close"' in text
+    assert '"terminal_liquidation_fills": 1' in text
     assert '"fee_bps"' not in text
     assert '"transaction_fee_bps_assumption"' not in text
     event_lines = paths["events"].read_text().splitlines()
@@ -105,6 +120,8 @@ def test_write_backtest_report(tmp_path: Path):
     fill_row = json.loads(paths["fills"].read_text().splitlines()[0])
     assert fill_row["venue"] == "unclassified"
     assert fill_row["market_data_source"] == "test"
+    equity_rows = [json.loads(line) for line in paths["equity"].read_text().splitlines()]
+    assert equity_rows[-1]["stage"] == "post_terminal_liquidation"
 
 
 def test_next_open_execution_price_has_no_synthetic_cost():
@@ -139,6 +156,22 @@ def test_bid_ask_execution_is_adverse_for_buys_and_sells():
     assert sell.fill_price_usd == Decimal("99.800100")
     assert buy.fill_price_usd > buy.synthetic_ask_usd > buy.reference_open_usd
     assert sell.reference_open_usd > sell.synthetic_bid_usd > sell.fill_price_usd
+
+
+def test_terminal_liquidation_price_uses_final_close_and_adverse_sell_costs():
+    assumptions = ExecutionAssumptions(
+        model=ExecutionModel.NEXT_BAR_OPEN_BID_ASK,
+        quoted_spread_bps_assumption=Decimal("20"),
+        adverse_slippage_bps_assumption=Decimal("10"),
+    )
+
+    price = calculate_terminal_liquidation_price(assumptions, Decimal("20"))
+
+    assert price.reference_close_usd == Decimal("20")
+    assert price.synthetic_bid_usd == Decimal("19.980")
+    assert price.synthetic_ask_usd == Decimal("20.020")
+    assert price.pre_slippage_touch_usd == Decimal("19.980")
+    assert price.fill_price_usd == Decimal("19.960020")
 
 
 @pytest.mark.parametrize(
@@ -192,7 +225,7 @@ def test_future_jump_cannot_fill_at_signal_close():
     assert result.execution_model == ExecutionModel.NEXT_BAR_OPEN
     assert result.intents == 1
     assert result.allowed == 1
-    assert len(result.fills) == 1
+    assert len(result.fills) == 2
     fill = result.fills[0]
     signal_bar = candles[4]
     fill_bar = candles[5]
@@ -224,6 +257,24 @@ def test_future_jump_cannot_fill_at_signal_close():
     )
     assert signal_close.sequence < related[0].sequence < next_open.sequence
     assert next_open.sequence < related[1].sequence < related[2].sequence
+
+    terminal_fill = result.fills[-1]
+    assert terminal_fill.side == Side.SELL
+    assert terminal_fill.price_usd == Decimal("20")
+    assert terminal_fill.fee_usd == Decimal("0.0100")
+    assert terminal_fill.raw["terminal_liquidation"] is True
+    assert terminal_fill.raw["reference_close_usd"] == "20"
+    assert result.fees_usd == Decimal("0.0200")
+    assert result.final_usd == Decimal("999.9800")
+    assert result.final_position_btc == 0
+    assert result.position_before_terminal_liquidation_btc == 1
+    assert result.terminal_liquidation_model == TerminalLiquidationModel.LAST_BAR_CLOSE
+    request_event, terminal_fill_event = result.events[-2:]
+    assert request_event.event_type == BacktestEventType.TERMINAL_LIQUIDATION_REQUESTED
+    assert terminal_fill_event.event_type == BacktestEventType.FILL
+    assert request_event.sequence < terminal_fill_event.sequence
+    assert request_event.client_order_id == terminal_fill.client_order_id
+    assert terminal_fill_event.client_order_id == terminal_fill.client_order_id
 
 
 def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
@@ -260,6 +311,16 @@ def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
     assert fill_event.details["reference_open_usd"] == "20"
     assert fill_event.details["fill_price_usd"] == "20.040020"
 
+    terminal_fill = result.fills[-1]
+    assert terminal_fill.side == Side.SELL
+    assert terminal_fill.price_usd == Decimal("19.960020")
+    assert terminal_fill.fee_usd == 0
+    assert terminal_fill.raw["reference_close_usd"] == "20"
+    assert terminal_fill.raw["pre_slippage_touch_usd"] == "19.980"
+    assert terminal_fill.raw["terminal_liquidation_model"] == "last_bar_close_bid_ask"
+    assert result.final_usd == Decimal("999.920000")
+    assert result.terminal_liquidation_model == (TerminalLiquidationModel.LAST_BAR_CLOSE_BID_ASK)
+
 
 def test_robinhood_v1_profile_embeds_cost_in_spread_without_fee():
     candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
@@ -282,6 +343,10 @@ def test_robinhood_v1_profile_embeds_cost_in_spread_without_fee():
     assert fill.raw["cost_input_classification"] == "configured_assumption"
     assert result.summary()["routing"] == "market_maker"
     assert result.summary()["api_version"] == "v1"
+    terminal_fill = result.fills[-1]
+    assert terminal_fill.price_usd == Decimal("19.8080")
+    assert terminal_fill.fee_usd == 0
+    assert result.fees_usd == 0
 
 
 def test_robinhood_v2_profile_charges_taker_fee_assumption_on_fill_notional():
@@ -315,6 +380,12 @@ def test_robinhood_v2_profile_charges_taker_fee_assumption_on_fill_notional():
     assert "fee_bps" not in result.summary()
     assert "transaction_fee_bps_assumption" not in result.summary()
     assert "observed" not in str(result.summary()).lower()
+    terminal_fill = result.fills[-1]
+    assert terminal_fill.price_usd == Decimal("19.960020")
+    assert terminal_fill.fee_usd == Decimal("0.189620190")
+    assert result.terminal_liquidation_fee_usd == Decimal("0.189620190")
+    assert result.fees_usd == Decimal("0.380000380")
+    assert result.summary()["terminal_liquidation_fee_usd"] == "0.1896201900"
 
 
 def test_signal_on_final_bar_expires_without_fill():
@@ -332,3 +403,9 @@ def test_signal_on_final_bar_expires_without_fill():
     assert result.end_of_data_orders == 1
     assert result.events[-1].event_type == BacktestEventType.ORDER_EXPIRED
     assert result.events[-1].details["reason"] == "end_of_data_before_eligible_bar"
+    assert result.final_position_btc == 0
+    assert result.position_before_terminal_liquidation_btc == 0
+    assert result.terminal_liquidation_fills == 0
+    assert result.terminal_liquidation_qty_btc == 0
+    assert result.terminal_liquidation_fee_usd == 0
+    assert result.equity_curve[-1].stage == EquityPointStage.BAR_CLOSE_MARK

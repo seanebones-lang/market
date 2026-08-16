@@ -124,7 +124,10 @@ def main(argv: list[str] | None = None) -> int:
     bt_p.add_argument(
         "--quoted-spread-bps-assumption",
         default="0",
-        help="Assumed full bid-ask spread in bps, centered on the next open",
+        help=(
+            "Assumed full bid-ask spread in bps, centered on each next open and the final close "
+            "used for terminal liquidation"
+        ),
     )
     bt_p.add_argument(
         "--adverse-slippage-bps-assumption",
@@ -398,6 +401,13 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     console.print(
         f"fills={len(result.fills)} intents={result.intents} "
         f"allowed={result.allowed} blocked={result.blocked}"
+    )
+    console.print(
+        f"terminal_liquidation_model={result.terminal_liquidation_model.value} "
+        f"terminal_liquidation_fills={result.terminal_liquidation_fills} "
+        f"terminal_liquidation_qty_btc={result.terminal_liquidation_qty_btc} "
+        f"terminal_liquidation_fee_usd={result.terminal_liquidation_fee_usd} "
+        f"final_position_btc={result.final_position_btc}"
     )
     console.print(
         f"start_usd={result.starting_usd} end_usd={result.final_usd} "

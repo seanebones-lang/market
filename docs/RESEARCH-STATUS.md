@@ -15,7 +15,8 @@ order permissions, or live capital.
   Configured rates are still assumptions, not account-observed costs.
 - The saved reports used an ambiguous fee label. G2.3a defines new-run transaction fees per fill;
   it does not change or rehabilitate the saved artifacts.
-- Terminal inventory is liquidated without a recorded fill or exit cost.
+- The saved reports liquidated terminal inventory without a recorded fill or exit cost. G2.4 fixes
+  this for new runs only; it does not rehabilitate those reports.
 - Marked final equity is labeled realized P&L.
 - The best run used 1,500 bars, but its exact input dataset is no longer retained.
 - The current cache contains only 600 bars, approximately 25 days.
@@ -34,6 +35,6 @@ G1 now provides a versioned five-year input dataset with immutable raw data, nor
 checksums, declared gaps, and strategy-safe segments. It does not rehabilitate these saved runs or
 the partially rebuilt engine. G2.1 now enforces next-bar-open eligibility, G2.2 supplies declared
 bid/ask and adverse-slippage models, and G2.3 supplies route-specific Robinhood cost contracts. The
-G2.3a schema defines each transaction fee per executed fill. The next valid result begins only after
-the complete G2 gate passes and uses the verified G1 manifest. Profitability can never be
-guaranteed.
+G2.3a schema defines each transaction fee per executed fill, and G2.4 makes terminal liquidation a
+fully costed sell fill that leaves new runs flat. The next valid result begins only after the
+complete G2 gate passes and uses the verified G1 manifest. Profitability can never be guaranteed.

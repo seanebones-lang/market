@@ -50,8 +50,10 @@ declared Coinbase history gaps and is admitted only as four independently warmed
 `docs/DATA.md`. G2.1 now enforces next-bar-open timing, G2.2 adds declared synthetic bid/ask and
 adverse-slippage assumptions, and G2.3 separates Robinhood v1 market-maker spread treatment from v2
 exchange-taker fee assumptions. G2.3a defines every transaction fee per execution fill and removes
-the old ambiguous CLI flags. The backtester remains exploratory until the rest of G2 fixes terminal
-liquidation and accounting.
+the old ambiguous CLI flags. G2.4 now represents end-of-data liquidation as a real, fully costed
+sell fill and ends each liquidated run flat. The backtester remains exploratory until the rest of
+G2 implements portfolio accounting, lifecycle metrics, benchmarks, statistics, and reproducible
+run identity.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.

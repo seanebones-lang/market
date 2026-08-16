@@ -24,12 +24,17 @@ from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Si
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 class ExecutionModel(str, Enum):
     NEXT_BAR_OPEN = "next_bar_open"
     NEXT_BAR_OPEN_BID_ASK = "next_bar_open_bid_ask"
+
+
+class TerminalLiquidationModel(str, Enum):
+    LAST_BAR_CLOSE = "last_bar_close"
+    LAST_BAR_CLOSE_BID_ASK = "last_bar_close_bid_ask"
 
 
 class ExecutionAssumptions(BaseModel):
@@ -83,6 +88,17 @@ class ExecutionPrice:
     fill_price_usd: Decimal
 
 
+@dataclass(frozen=True)
+class TerminalLiquidationPrice:
+    """Synthetic terminal sell derived from the final bar's reference close."""
+
+    reference_close_usd: Decimal
+    synthetic_bid_usd: Decimal
+    synthetic_ask_usd: Decimal
+    pre_slippage_touch_usd: Decimal
+    fill_price_usd: Decimal
+
+
 def calculate_execution_price(
     assumptions: ExecutionAssumptions,
     side: Side,
@@ -121,6 +137,29 @@ def calculate_execution_price(
     )
 
 
+def calculate_terminal_liquidation_price(
+    assumptions: ExecutionAssumptions,
+    reference_close_usd: Decimal,
+) -> TerminalLiquidationPrice:
+    """Calculate a deterministic end-of-data sell under the run's execution assumptions."""
+    price = calculate_execution_price(assumptions, Side.SELL, reference_close_usd)
+    return TerminalLiquidationPrice(
+        reference_close_usd=reference_close_usd,
+        synthetic_bid_usd=price.synthetic_bid_usd,
+        synthetic_ask_usd=price.synthetic_ask_usd,
+        pre_slippage_touch_usd=price.pre_slippage_touch_usd,
+        fill_price_usd=price.fill_price_usd,
+    )
+
+
+def terminal_liquidation_model_for(
+    execution_model: ExecutionModel,
+) -> TerminalLiquidationModel:
+    if execution_model == ExecutionModel.NEXT_BAR_OPEN:
+        return TerminalLiquidationModel.LAST_BAR_CLOSE
+    return TerminalLiquidationModel.LAST_BAR_CLOSE_BID_ASK
+
+
 class BacktestEventType(str, Enum):
     BAR_OPEN = "bar_open"
     ORDER_ELIGIBLE = "order_eligible"
@@ -130,6 +169,12 @@ class BacktestEventType(str, Enum):
     DECISION_ACCEPTED = "decision_accepted"
     DECISION_BLOCKED = "decision_blocked"
     ORDER_EXPIRED = "order_expired"
+    TERMINAL_LIQUIDATION_REQUESTED = "terminal_liquidation_requested"
+
+
+class EquityPointStage(str, Enum):
+    BAR_CLOSE_MARK = "bar_close_mark"
+    POST_TERMINAL_LIQUIDATION = "post_terminal_liquidation"
 
 
 @dataclass(frozen=True)
@@ -158,6 +203,7 @@ class EquityPoint:
     usd: Decimal
     btc: Decimal
     mark: Decimal
+    stage: EquityPointStage = EquityPointStage.BAR_CLOSE_MARK
 
 
 @dataclass
@@ -196,6 +242,11 @@ class BacktestResult:
     quoted_spread_bps_assumption: Decimal = Decimal("0")
     adverse_slippage_bps_assumption: Decimal = Decimal("0")
     end_of_data_orders: int = 0
+    terminal_liquidation_model: TerminalLiquidationModel = TerminalLiquidationModel.LAST_BAR_CLOSE
+    position_before_terminal_liquidation_btc: Decimal = Decimal("0")
+    terminal_liquidation_fills: int = 0
+    terminal_liquidation_qty_btc: Decimal = Decimal("0")
+    terminal_liquidation_fee_usd: Decimal = Decimal("0")
 
     @property
     def equity_usd(self) -> Decimal:
@@ -234,12 +285,16 @@ class BacktestResult:
             "execution_model": self.execution_model.value,
             "quoted_spread_bps_assumption": str(self.quoted_spread_bps_assumption),
             "adverse_slippage_bps_assumption": str(self.adverse_slippage_bps_assumption),
+            "terminal_liquidation_model": self.terminal_liquidation_model.value,
             "bars": self.bars,
             "first_ts": self.first_ts,
             "last_ts": self.last_ts,
             "fills": len(self.fills),
             "events": len(self.events),
             "end_of_data_orders": self.end_of_data_orders,
+            "terminal_liquidation_fills": self.terminal_liquidation_fills,
+            "terminal_liquidation_qty_btc": str(self.terminal_liquidation_qty_btc),
+            "terminal_liquidation_fee_usd": str(self.terminal_liquidation_fee_usd),
             "intents": self.intents,
             "allowed": self.allowed,
             "blocked": self.blocked,
@@ -251,6 +306,9 @@ class BacktestResult:
             "max_equity_usd": str(self.max_equity_usd),
             "max_drawdown_usd": str(self.max_drawdown_usd),
             "final_position_btc": str(self.final_position_btc),
+            "position_before_terminal_liquidation_btc": str(
+                self.position_before_terminal_liquidation_btc
+            ),
         }
 
 
@@ -275,6 +333,7 @@ def run_backtest(
         adverse_slippage_bps_assumption=adverse_slippage_bps_assumption,
     )
     execution_model = execution_assumptions.model
+    terminal_liquidation_model = terminal_liquidation_model_for(execution_model)
     venue_cost_assumptions = VenueCostAssumptions(
         profile=venue_cost_profile,
         transaction_fee_bps_per_fill_assumption=(transaction_fee_bps_per_fill_assumption),
@@ -304,6 +363,7 @@ def run_backtest(
             execution_model=execution_model,
             quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
             adverse_slippage_bps_assumption=(execution_assumptions.adverse_slippage_bps_assumption),
+            terminal_liquidation_model=terminal_liquidation_model,
         )
 
     require_clean_candles(candles)
@@ -401,13 +461,14 @@ def run_backtest(
             )
             quantity = pending.intent.qty_btc
             price = execution_price.fill_price_usd
-            fee = venue_cost.calculate_fee_usd(
-                executed_quantity=quantity,
-                fill_price_usd=price,
-            )
+            fee = Decimal("0")
             traded = False
             reject_reason: str | None = None
             if side == Side.BUY:
+                fee = venue_cost.calculate_fee_usd(
+                    executed_quantity=quantity,
+                    fill_price_usd=price,
+                )
                 cost = quantity * price + fee
                 if cost <= usd:
                     usd -= cost
@@ -420,6 +481,10 @@ def run_backtest(
             else:
                 quantity = min(quantity, btc)
                 if quantity > 0:
+                    fee = venue_cost.calculate_fee_usd(
+                        executed_quantity=quantity,
+                        fill_price_usd=price,
+                    )
                     usd += quantity * price - fee
                     btc -= quantity
                     fees_total += fee
@@ -578,17 +643,109 @@ def run_backtest(
             },
         )
 
-    # G2.4 will replace this legacy comparison-only terminal cash adjustment with a costed fill.
-    final_btc = btc
-    if btc > 0:
-        usd += btc * candles[-1].close
+    position_before_terminal_liquidation = btc
+    terminal_liquidation_fills = 0
+    terminal_liquidation_qty = Decimal("0")
+    terminal_liquidation_fee = Decimal("0")
+    if position_before_terminal_liquidation > 0:
+        terminal_bar = candles[-1]
+        terminal_ts = terminal_bar.close_time.isoformat()
+        terminal_bar_ts = terminal_bar.ts.isoformat()
+        terminal_client_order_id = f"terminal-liquidation-{terminal_ts}"
+        terminal_price = calculate_terminal_liquidation_price(
+            execution_assumptions,
+            terminal_bar.close,
+        )
+        terminal_liquidation_qty = position_before_terminal_liquidation
+        terminal_liquidation_fee = venue_cost.calculate_fee_usd(
+            executed_quantity=terminal_liquidation_qty,
+            fill_price_usd=terminal_price.fill_price_usd,
+        )
+        price_details = {
+            "reference_close_usd": str(terminal_price.reference_close_usd),
+            "synthetic_bid_usd": str(terminal_price.synthetic_bid_usd),
+            "synthetic_ask_usd": str(terminal_price.synthetic_ask_usd),
+            "pre_slippage_touch_usd": str(terminal_price.pre_slippage_touch_usd),
+            "fill_price_usd": str(terminal_price.fill_price_usd),
+            "quoted_spread_bps_assumption": str(execution_assumptions.quoted_spread_bps_assumption),
+            "adverse_slippage_bps_assumption": str(
+                execution_assumptions.adverse_slippage_bps_assumption
+            ),
+        }
+        emit(
+            BacktestEventType.TERMINAL_LIQUIDATION_REQUESTED,
+            ts=terminal_ts,
+            bar_ts=terminal_bar_ts,
+            client_order_id=terminal_client_order_id,
+            details={
+                "reason": "terminal_liquidation_end_of_data",
+                "side": Side.SELL.value,
+                "qty_btc": str(terminal_liquidation_qty),
+                "terminal_liquidation_model": terminal_liquidation_model.value,
+                **cost_details,
+                **price_details,
+            },
+        )
+        terminal_fill = Fill(
+            client_order_id=terminal_client_order_id,
+            broker_order_id=f"bt-{len(fills) + 1}",
+            side=Side.SELL,
+            qty_btc=terminal_liquidation_qty,
+            price_usd=terminal_price.fill_price_usd,
+            fee_usd=terminal_liquidation_fee,
+            ts=terminal_bar.close_time,
+            raw={
+                "source": source or "backtest",
+                "terminal_liquidation": True,
+                "reason": "terminal_liquidation_end_of_data",
+                "terminal_liquidation_model": terminal_liquidation_model.value,
+                "reference_bar_ts": terminal_bar_ts,
+                **cost_details,
+                **price_details,
+            },
+        )
+        fills.append(terminal_fill)
+        emit(
+            BacktestEventType.FILL,
+            ts=terminal_ts,
+            bar_ts=terminal_bar_ts,
+            client_order_id=terminal_client_order_id,
+            details={
+                "side": Side.SELL.value,
+                "qty_btc": str(terminal_liquidation_qty),
+                "price_usd": str(terminal_price.fill_price_usd),
+                "fee_usd": str(terminal_liquidation_fee),
+                "terminal_liquidation": True,
+                "reason": "terminal_liquidation_end_of_data",
+                "terminal_liquidation_model": terminal_liquidation_model.value,
+                **cost_details,
+                **price_details,
+            },
+        )
+        usd += terminal_liquidation_qty * terminal_price.fill_price_usd - terminal_liquidation_fee
         btc = Decimal("0")
+        fees_total += terminal_liquidation_fee
+        terminal_liquidation_fills = 1
+
+        post_liquidation_equity = usd
+        peak = max(peak, post_liquidation_equity)
+        max_dd = max(max_dd, peak - post_liquidation_equity)
+        equity_curve.append(
+            EquityPoint(
+                ts=terminal_ts,
+                equity_usd=post_liquidation_equity,
+                usd=usd,
+                btc=btc,
+                mark=terminal_bar.close,
+                stage=EquityPointStage.POST_TERMINAL_LIQUIDATION,
+            )
+        )
 
     return BacktestResult(
         fills=fills,
         events=events,
         equity_curve=equity_curve,
-        final_position_btc=final_btc,  # pre-flatten inventory (informational)
+        final_position_btc=btc,
         final_usd=usd,
         starting_usd=starting_usd,
         intents=intents,
@@ -619,6 +776,11 @@ def run_backtest(
         quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
         adverse_slippage_bps_assumption=(execution_assumptions.adverse_slippage_bps_assumption),
         end_of_data_orders=end_of_data_orders,
+        terminal_liquidation_model=terminal_liquidation_model,
+        position_before_terminal_liquidation_btc=(position_before_terminal_liquidation),
+        terminal_liquidation_fills=terminal_liquidation_fills,
+        terminal_liquidation_qty_btc=terminal_liquidation_qty,
+        terminal_liquidation_fee_usd=terminal_liquidation_fee,
     )
 
 
@@ -675,6 +837,7 @@ def write_backtest_report(
                 "usd": str(pt.usd),
                 "btc": str(pt.btc),
                 "mark": str(pt.mark),
+                "stage": pt.stage.value,
             }
             f.write(json.dumps(row, default=str) + "\n")
     return {
