@@ -358,7 +358,7 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     )
     result = run_backtest(
         candles,
-        starting_usd=Decimal(args.cash),
+        starting_cash_usd=Decimal(args.cash),
         qty_btc=Decimal(args.qty),
         strategy_cfg=cfg,
         source=source,
@@ -407,12 +407,23 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         f"terminal_liquidation_fills={result.terminal_liquidation_fills} "
         f"terminal_liquidation_qty_btc={result.terminal_liquidation_qty_btc} "
         f"terminal_liquidation_fee_usd={result.terminal_liquidation_fee_usd} "
-        f"final_position_btc={result.final_position_btc}"
+        f"final_inventory_btc={result.final_inventory_btc}"
     )
     console.print(
-        f"start_usd={result.starting_usd} end_usd={result.final_usd} "
-        f"pnl={result.realized_pnl_usd} return%={result.return_pct} "
-        f"fees={result.fees_usd} max_dd={result.max_drawdown_usd}"
+        f"starting_cash_usd={result.starting_cash_usd} "
+        f"final_cash_usd={result.final_cash_usd} "
+        f"realized_gross_pnl_usd={result.realized_gross_pnl_usd} "
+        f"unrealized_gross_pnl_usd={result.unrealized_gross_pnl_usd} "
+        f"cumulative_fees_usd={result.cumulative_fees_usd}"
+    )
+    console.print(
+        f"marked_equity_usd={result.marked_equity_usd} "
+        f"net_liquidation_value_usd={result.net_liquidation_value_usd} "
+        f"net_liquidation_pnl_after_fees_usd="
+        f"{result.net_liquidation_pnl_after_fees_usd} "
+        f"net_liquidation_return%={result.net_liquidation_return_pct} "
+        f"max_net_liquidation_drawdown_usd="
+        f"{result.max_net_liquidation_drawdown_usd}"
     )
     if result.fills:
         f0, f1 = result.fills[0], result.fills[-1]
@@ -421,6 +432,7 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     console.print(f"[green]wrote[/green] {paths['summary']}")
     console.print(f"       {paths['events']} ({len(result.events)} rows)")
     console.print(f"       {paths['fills']} ({len(result.fills)} rows)")
+    console.print(f"       {paths['accounting']} ({len(result.accounting_journal)} rows)")
     console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")
     return 0
 
@@ -469,7 +481,7 @@ def _cmd_paper(args: argparse.Namespace, root: Path) -> int:
         )
         bt = run_backtest(
             loop.candles,
-            starting_usd=Decimal(args.cash),
+            starting_cash_usd=Decimal(args.cash),
             qty_btc=config.strategy.order_qty_btc,
             strategy_cfg=SlowTrendConfig(
                 fast_ema=config.strategy.fast_ema,
@@ -480,7 +492,8 @@ def _cmd_paper(args: argparse.Namespace, root: Path) -> int:
         )
         console.print(
             f"[bold]hist replay[/bold] fills={len(bt.fills)} intents={bt.intents} "
-            f"start={bt.starting_usd} end={bt.final_usd} pnl={bt.realized_pnl_usd}"
+            f"start={bt.starting_cash_usd} end={bt.net_liquidation_value_usd} "
+            f"net_liquidation_pnl={bt.net_liquidation_pnl_after_fees_usd}"
         )
         if bt.fills:
             last = bt.fills[-1]

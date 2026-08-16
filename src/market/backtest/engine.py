@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
@@ -11,6 +11,11 @@ from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from market.backtest.accounting import (
+    PortfolioAccount,
+    PortfolioJournalEntry,
+    PortfolioSnapshot,
+)
 from market.backtest.costs import (
     BPS_DIVISOR,
     CostInputClassification,
@@ -24,7 +29,7 @@ from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Si
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class ExecutionModel(str, Enum):
@@ -199,11 +204,52 @@ class PendingOrder:
 @dataclass
 class EquityPoint:
     ts: str
-    equity_usd: Decimal
-    usd: Decimal
-    btc: Decimal
-    mark: Decimal
+    marked_equity_usd: Decimal
+    cash_usd: Decimal
+    inventory_btc: Decimal
+    mark_price_usd: Decimal
+    inventory_market_value_usd: Decimal
+    inventory_cost_basis_usd: Decimal
+    average_entry_price_usd: Decimal | None
+    realized_gross_pnl_usd: Decimal
+    unrealized_gross_pnl_usd: Decimal
+    cumulative_fees_usd: Decimal
+    net_liquidation_value_usd: Decimal
+    estimated_liquidation_price_usd: Decimal
+    estimated_liquidation_fee_usd: Decimal
+    marked_net_pnl_after_fees_usd: Decimal
+    net_liquidation_pnl_after_fees_usd: Decimal
+    accounting_identity_residual_usd: Decimal
     stage: EquityPointStage = EquityPointStage.BAR_CLOSE_MARK
+
+    @classmethod
+    def from_snapshot(
+        cls,
+        *,
+        ts: str,
+        stage: EquityPointStage,
+        snapshot: PortfolioSnapshot,
+    ) -> EquityPoint:
+        return cls(
+            ts=ts,
+            marked_equity_usd=snapshot.marked_equity_usd,
+            cash_usd=snapshot.cash_usd,
+            inventory_btc=snapshot.inventory_btc,
+            mark_price_usd=snapshot.mark_price_usd,
+            inventory_market_value_usd=snapshot.inventory_market_value_usd,
+            inventory_cost_basis_usd=snapshot.inventory_cost_basis_usd,
+            average_entry_price_usd=snapshot.average_entry_price_usd,
+            realized_gross_pnl_usd=snapshot.realized_gross_pnl_usd,
+            unrealized_gross_pnl_usd=snapshot.unrealized_gross_pnl_usd,
+            cumulative_fees_usd=snapshot.cumulative_fees_usd,
+            net_liquidation_value_usd=snapshot.net_liquidation_value_usd,
+            estimated_liquidation_price_usd=snapshot.estimated_liquidation_price_usd,
+            estimated_liquidation_fee_usd=snapshot.estimated_liquidation_fee_usd,
+            marked_net_pnl_after_fees_usd=snapshot.marked_net_pnl_after_fees_usd,
+            net_liquidation_pnl_after_fees_usd=(snapshot.net_liquidation_pnl_after_fees_usd),
+            accounting_identity_residual_usd=snapshot.accounting_identity_residual_usd,
+            stage=stage,
+        )
 
 
 @dataclass
@@ -211,18 +257,28 @@ class BacktestResult:
     fills: list[Fill] = field(default_factory=list)
     events: list[BacktestEvent] = field(default_factory=list)
     equity_curve: list[EquityPoint] = field(default_factory=list)
-    final_position_btc: Decimal = Decimal("0")
-    final_usd: Decimal = Decimal("0")
-    starting_usd: Decimal = Decimal("0")
+    accounting_journal: list[PortfolioJournalEntry] = field(default_factory=list)
+    final_inventory_btc: Decimal = Decimal("0")
+    final_cash_usd: Decimal = Decimal("0")
+    starting_cash_usd: Decimal = Decimal("0")
+    final_inventory_cost_basis_usd: Decimal = Decimal("0")
+    final_average_entry_price_usd: Decimal | None = None
+    realized_gross_pnl_usd: Decimal = Decimal("0")
+    unrealized_gross_pnl_usd: Decimal = Decimal("0")
+    marked_equity_usd: Decimal = Decimal("0")
+    net_liquidation_value_usd: Decimal = Decimal("0")
+    marked_net_pnl_after_fees_usd: Decimal = Decimal("0")
+    net_liquidation_pnl_after_fees_usd: Decimal = Decimal("0")
+    accounting_identity_residual_usd: Decimal = Decimal("0")
     intents: int = 0
     allowed: int = 0
     blocked: int = 0
     bars: int = 0
     first_ts: str | None = None
     last_ts: str | None = None
-    max_drawdown_usd: Decimal = Decimal("0")
-    max_equity_usd: Decimal = Decimal("0")
-    fees_usd: Decimal = Decimal("0")
+    max_net_liquidation_drawdown_usd: Decimal = Decimal("0")
+    max_marked_equity_usd: Decimal = Decimal("0")
+    cumulative_fees_usd: Decimal = Decimal("0")
     source: str = ""
     strategy: str = "slow_trend_v1"
     fast_ema: int = 12
@@ -249,18 +305,10 @@ class BacktestResult:
     terminal_liquidation_fee_usd: Decimal = Decimal("0")
 
     @property
-    def equity_usd(self) -> Decimal:
-        return self.final_usd
-
-    @property
-    def realized_pnl_usd(self) -> Decimal:
-        return self.final_usd - self.starting_usd
-
-    @property
-    def return_pct(self) -> Decimal:
-        if self.starting_usd == 0:
+    def net_liquidation_return_pct(self) -> Decimal:
+        if self.starting_cash_usd == 0:
             return Decimal("0")
-        return (self.realized_pnl_usd / self.starting_usd) * Decimal("100")
+        return (self.net_liquidation_pnl_after_fees_usd / self.starting_cash_usd) * Decimal("100")
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -298,14 +346,28 @@ class BacktestResult:
             "intents": self.intents,
             "allowed": self.allowed,
             "blocked": self.blocked,
-            "starting_usd": str(self.starting_usd),
-            "final_usd": str(self.final_usd),
-            "pnl_usd": str(self.realized_pnl_usd),
-            "return_pct": str(self.return_pct),
-            "fees_usd": str(self.fees_usd),
-            "max_equity_usd": str(self.max_equity_usd),
-            "max_drawdown_usd": str(self.max_drawdown_usd),
-            "final_position_btc": str(self.final_position_btc),
+            "accounting_method": "weighted_average_gross_cost_basis_fees_separate",
+            "accounting_journal_entries": len(self.accounting_journal),
+            "starting_cash_usd": str(self.starting_cash_usd),
+            "final_cash_usd": str(self.final_cash_usd),
+            "final_inventory_btc": str(self.final_inventory_btc),
+            "final_inventory_cost_basis_usd": str(self.final_inventory_cost_basis_usd),
+            "final_average_entry_price_usd": (
+                str(self.final_average_entry_price_usd)
+                if self.final_average_entry_price_usd is not None
+                else None
+            ),
+            "realized_gross_pnl_usd": str(self.realized_gross_pnl_usd),
+            "unrealized_gross_pnl_usd": str(self.unrealized_gross_pnl_usd),
+            "cumulative_fees_usd": str(self.cumulative_fees_usd),
+            "marked_equity_usd": str(self.marked_equity_usd),
+            "net_liquidation_value_usd": str(self.net_liquidation_value_usd),
+            "marked_net_pnl_after_fees_usd": str(self.marked_net_pnl_after_fees_usd),
+            "net_liquidation_pnl_after_fees_usd": str(self.net_liquidation_pnl_after_fees_usd),
+            "net_liquidation_return_pct": str(self.net_liquidation_return_pct),
+            "accounting_identity_residual_usd": str(self.accounting_identity_residual_usd),
+            "max_marked_equity_usd": str(self.max_marked_equity_usd),
+            "max_net_liquidation_drawdown_usd": str(self.max_net_liquidation_drawdown_usd),
             "position_before_terminal_liquidation_btc": str(
                 self.position_before_terminal_liquidation_btc
             ),
@@ -314,7 +376,7 @@ class BacktestResult:
 
 def run_backtest(
     candles: list[Candle],
-    starting_usd: Decimal = Decimal("1000"),
+    starting_cash_usd: Decimal = Decimal("1000"),
     qty_btc: Decimal = Decimal("0.001"),
     strategy_cfg: SlowTrendConfig | None = None,
     risk_cfg: RiskConfig | None = None,
@@ -345,10 +407,15 @@ def run_backtest(
     )
     cost_details = venue_cost.artifact_details()
     cost_metadata = venue_cost_assumptions.metadata
+    account = PortfolioAccount(starting_cash_usd=starting_cash_usd)
     if not candles:
         return BacktestResult(
-            starting_usd=starting_usd,
-            final_usd=starting_usd,
+            starting_cash_usd=starting_cash_usd,
+            final_cash_usd=starting_cash_usd,
+            marked_equity_usd=starting_cash_usd,
+            net_liquidation_value_usd=starting_cash_usd,
+            max_marked_equity_usd=starting_cash_usd,
+            accounting_journal=list(account.journal),
             source=source,
             venue_cost_profile=venue_cost_assumptions.profile,
             venue=cost_metadata.venue,
@@ -381,16 +448,15 @@ def run_backtest(
     risk = RiskGate(risk_cfg)
     state = RiskState()
 
-    usd = starting_usd
-    btc = Decimal("0")
     fills: list[Fill] = []
     events: list[BacktestEvent] = []
     equity_curve: list[EquityPoint] = []
     intents = allowed = blocked = 0
-    fees_total = Decimal("0")
-    peak = starting_usd
+    peak = starting_cash_usd
+    net_liquidation_peak = starting_cash_usd
     max_dd = Decimal("0")
     pending: PendingOrder | None = None
+    final_snapshot: PortfolioSnapshot | None = None
 
     def emit(
         event_type: BacktestEventType,
@@ -470,30 +536,26 @@ def run_backtest(
                     fill_price_usd=price,
                 )
                 cost = quantity * price + fee
-                if cost <= usd:
-                    usd -= cost
-                    btc += quantity
-                    fees_total += fee
+                if cost <= account.cash_usd:
                     traded = True
                 else:
                     blocked += 1
                     reject_reason = "insufficient_cash_at_execution"
             else:
-                quantity = min(quantity, btc)
+                quantity = min(quantity, account.inventory_btc)
                 if quantity > 0:
                     fee = venue_cost.calculate_fee_usd(
                         executed_quantity=quantity,
                         fill_price_usd=price,
                     )
-                    usd += quantity * price - fee
-                    btc -= quantity
-                    fees_total += fee
                     traded = True
                 else:
                     blocked += 1
                     reject_reason = "no_inventory_at_execution"
 
             if traded:
+                fill_event_sequence = len(events) + 1
+                accounting_journal_sequence = len(account.journal) + 1
                 fill = Fill(
                     client_order_id=pending.intent.client_order_id,
                     broker_order_id=f"bt-{len(fills) + 1}",
@@ -513,10 +575,12 @@ def run_backtest(
                         "fill_bar_open": str(bar.open),
                         **cost_details,
                         **price_details,
+                        "accounting_journal_sequence": accounting_journal_sequence,
                         "reason": pending.intent.reason,
                         "signal_snapshot": pending.intent.signal_snapshot,
                     },
                 )
+                account.apply_fill(fill, event_sequence=fill_event_sequence)
                 fills.append(fill)
                 emit(
                     BacktestEventType.FILL,
@@ -530,6 +594,7 @@ def run_backtest(
                         "fee_usd": str(fee),
                         "execution_model": execution_model.value,
                         "signal_bar_ts": pending.signal_bar_ts,
+                        "accounting_journal_sequence": accounting_journal_sequence,
                         **cost_details,
                         **price_details,
                     },
@@ -558,35 +623,60 @@ def run_backtest(
             details={"close": str(bar.close)},
         )
 
-        # Mark-to-market after the bar closes and any next-open fill has already occurred.
-        equity = usd + btc * bar.close
-        peak = max(peak, equity)
-        drawdown = peak - equity
+        # Mark inventory at mid and separately estimate the costed net liquidation value.
+        liquidation_price = calculate_terminal_liquidation_price(
+            execution_assumptions,
+            bar.close,
+        )
+        estimated_liquidation_fee = (
+            venue_cost.calculate_fee_usd(
+                executed_quantity=account.inventory_btc,
+                fill_price_usd=liquidation_price.fill_price_usd,
+            )
+            if account.inventory_btc > 0
+            else Decimal("0")
+        )
+        final_snapshot = account.snapshot(
+            mark_price_usd=bar.close,
+            estimated_liquidation_price_usd=liquidation_price.fill_price_usd,
+            estimated_liquidation_fee_usd=estimated_liquidation_fee,
+        )
+        peak = max(peak, final_snapshot.marked_equity_usd)
+        net_liquidation_peak = max(
+            net_liquidation_peak,
+            final_snapshot.net_liquidation_value_usd,
+        )
+        drawdown = net_liquidation_peak - final_snapshot.net_liquidation_value_usd
         max_dd = max(max_dd, drawdown)
         if record_equity_every > 0 and (
             (index + 1) % record_equity_every == 0 or index == len(candles) - 1
         ):
             equity_curve.append(
-                EquityPoint(
+                EquityPoint.from_snapshot(
                     ts=bar.close_time.isoformat(),
-                    equity_usd=equity,
-                    usd=usd,
-                    btc=btc,
-                    mark=bar.close,
+                    stage=EquityPointStage.BAR_CLOSE_MARK,
+                    snapshot=final_snapshot,
                 )
             )
 
         if index + 1 < min_bars:
             continue
         window = candles[: index + 1]
-        pos = Position(qty_btc=btc)
+        pos = Position(
+            qty_btc=account.inventory_btc,
+            avg_entry_usd=(
+                account.inventory_cost_basis_usd / account.inventory_btc
+                if account.inventory_btc > 0
+                else None
+            ),
+        )
         intent = strategy.evaluate(window, pos)
         if intent is not None:
             intents += 1
             decision = risk.evaluate(
                 intent,
                 pos,
-                Balances(usd=usd, btc=btc),
+                Balances(usd=account.cash_usd, btc=account.inventory_btc),
                 state,
                 mark_usd=bar.close,
                 now=bar.close_time,
@@ -643,7 +733,7 @@ def run_backtest(
             },
         )
 
-    position_before_terminal_liquidation = btc
+    position_before_terminal_liquidation = account.inventory_btc
     terminal_liquidation_fills = 0
     terminal_liquidation_qty = Decimal("0")
     terminal_liquidation_fee = Decimal("0")
@@ -686,6 +776,8 @@ def run_backtest(
                 **price_details,
             },
         )
+        fill_event_sequence = len(events) + 1
+        accounting_journal_sequence = len(account.journal) + 1
         terminal_fill = Fill(
             client_order_id=terminal_client_order_id,
             broker_order_id=f"bt-{len(fills) + 1}",
@@ -700,10 +792,12 @@ def run_backtest(
                 "reason": "terminal_liquidation_end_of_data",
                 "terminal_liquidation_model": terminal_liquidation_model.value,
                 "reference_bar_ts": terminal_bar_ts,
+                "accounting_journal_sequence": accounting_journal_sequence,
                 **cost_details,
                 **price_details,
             },
         )
+        account.apply_fill(terminal_fill, event_sequence=fill_event_sequence)
         fills.append(terminal_fill)
         emit(
             BacktestEventType.FILL,
@@ -718,45 +812,64 @@ def run_backtest(
                 "terminal_liquidation": True,
                 "reason": "terminal_liquidation_end_of_data",
                 "terminal_liquidation_model": terminal_liquidation_model.value,
+                "accounting_journal_sequence": accounting_journal_sequence,
                 **cost_details,
                 **price_details,
             },
         )
-        usd += terminal_liquidation_qty * terminal_price.fill_price_usd - terminal_liquidation_fee
-        btc = Decimal("0")
-        fees_total += terminal_liquidation_fee
         terminal_liquidation_fills = 1
 
-        post_liquidation_equity = usd
-        peak = max(peak, post_liquidation_equity)
-        max_dd = max(max_dd, peak - post_liquidation_equity)
+        final_snapshot = account.snapshot(
+            mark_price_usd=terminal_bar.close,
+            estimated_liquidation_price_usd=terminal_price.fill_price_usd,
+            estimated_liquidation_fee_usd=Decimal("0"),
+        )
+        peak = max(peak, final_snapshot.marked_equity_usd)
+        net_liquidation_peak = max(
+            net_liquidation_peak,
+            final_snapshot.net_liquidation_value_usd,
+        )
+        max_dd = max(
+            max_dd,
+            net_liquidation_peak - final_snapshot.net_liquidation_value_usd,
+        )
         equity_curve.append(
-            EquityPoint(
+            EquityPoint.from_snapshot(
                 ts=terminal_ts,
-                equity_usd=post_liquidation_equity,
-                usd=usd,
-                btc=btc,
-                mark=terminal_bar.close,
                 stage=EquityPointStage.POST_TERMINAL_LIQUIDATION,
+                snapshot=final_snapshot,
             )
         )
+
+    if final_snapshot is None:
+        raise RuntimeError("nonempty backtest must produce a final accounting snapshot")
 
     return BacktestResult(
         fills=fills,
         events=events,
         equity_curve=equity_curve,
-        final_position_btc=btc,
-        final_usd=usd,
-        starting_usd=starting_usd,
+        accounting_journal=list(account.journal),
+        final_inventory_btc=account.inventory_btc,
+        final_cash_usd=account.cash_usd,
+        starting_cash_usd=starting_cash_usd,
+        final_inventory_cost_basis_usd=account.inventory_cost_basis_usd,
+        final_average_entry_price_usd=final_snapshot.average_entry_price_usd,
+        realized_gross_pnl_usd=final_snapshot.realized_gross_pnl_usd,
+        unrealized_gross_pnl_usd=final_snapshot.unrealized_gross_pnl_usd,
+        marked_equity_usd=final_snapshot.marked_equity_usd,
+        net_liquidation_value_usd=final_snapshot.net_liquidation_value_usd,
+        marked_net_pnl_after_fees_usd=(final_snapshot.marked_net_pnl_after_fees_usd),
+        net_liquidation_pnl_after_fees_usd=(final_snapshot.net_liquidation_pnl_after_fees_usd),
+        accounting_identity_residual_usd=(final_snapshot.accounting_identity_residual_usd),
         intents=intents,
         allowed=allowed,
         blocked=blocked,
         bars=len(candles),
         first_ts=candles[0].ts.isoformat(),
         last_ts=candles[-1].ts.isoformat(),
-        max_drawdown_usd=max_dd,
-        max_equity_usd=peak,
-        fees_usd=fees_total,
+        max_net_liquidation_drawdown_usd=max_dd,
+        max_marked_equity_usd=peak,
+        cumulative_fees_usd=account.cumulative_fees_usd,
         source=source,
         strategy="slow_trend_v1",
         fast_ema=strategy_cfg.fast_ema,
@@ -789,12 +902,13 @@ def write_backtest_report(
     out_dir: str | Path,
     run_id: str,
 ) -> dict[str, Path]:
-    """Write summary, ordered events, fills, and equity under ``out_dir/run_id``."""
+    """Write summary, events, fills, accounting journal, and marks under ``out_dir/run_id``."""
     out = Path(out_dir) / run_id
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / "summary.json"
     events_path = out / "events.jsonl"
     fills_path = out / "fills.jsonl"
+    accounting_path = out / "accounting.jsonl"
     equity_path = out / "equity.jsonl"
 
     summary_path.write_text(
@@ -826,6 +940,18 @@ def write_backtest_report(
                 "fill": fill.model_dump(mode="json"),
             }
             f.write(json.dumps(row, default=str) + "\n")
+    with accounting_path.open("w", encoding="utf-8") as f:
+        for entry in result.accounting_journal:
+            payload = asdict(entry)
+            payload["entry_type"] = entry.entry_type.value
+            payload["side"] = entry.side.value if entry.side is not None else None
+            row = {
+                "schema_version": SCHEMA_VERSION,
+                "type": "portfolio_journal_entry",
+                "run_id": run_id,
+                **payload,
+            }
+            f.write(json.dumps(row, default=str) + "\n")
     with equity_path.open("w", encoding="utf-8") as f:
         for pt in result.equity_curve:
             row = {
@@ -833,10 +959,26 @@ def write_backtest_report(
                 "type": "equity",
                 "run_id": run_id,
                 "ts": pt.ts,
-                "equity_usd": str(pt.equity_usd),
-                "usd": str(pt.usd),
-                "btc": str(pt.btc),
-                "mark": str(pt.mark),
+                "marked_equity_usd": str(pt.marked_equity_usd),
+                "cash_usd": str(pt.cash_usd),
+                "inventory_btc": str(pt.inventory_btc),
+                "mark_price_usd": str(pt.mark_price_usd),
+                "inventory_market_value_usd": str(pt.inventory_market_value_usd),
+                "inventory_cost_basis_usd": str(pt.inventory_cost_basis_usd),
+                "average_entry_price_usd": (
+                    str(pt.average_entry_price_usd)
+                    if pt.average_entry_price_usd is not None
+                    else None
+                ),
+                "realized_gross_pnl_usd": str(pt.realized_gross_pnl_usd),
+                "unrealized_gross_pnl_usd": str(pt.unrealized_gross_pnl_usd),
+                "cumulative_fees_usd": str(pt.cumulative_fees_usd),
+                "estimated_liquidation_price_usd": str(pt.estimated_liquidation_price_usd),
+                "estimated_liquidation_fee_usd": str(pt.estimated_liquidation_fee_usd),
+                "net_liquidation_value_usd": str(pt.net_liquidation_value_usd),
+                "marked_net_pnl_after_fees_usd": str(pt.marked_net_pnl_after_fees_usd),
+                "net_liquidation_pnl_after_fees_usd": str(pt.net_liquidation_pnl_after_fees_usd),
+                "accounting_identity_residual_usd": str(pt.accounting_identity_residual_usd),
                 "stage": pt.stage.value,
             }
             f.write(json.dumps(row, default=str) + "\n")
@@ -844,5 +986,6 @@ def write_backtest_report(
         "summary": summary_path,
         "events": events_path,
         "fills": fills_path,
+        "accounting": accounting_path,
         "equity": equity_path,
     }

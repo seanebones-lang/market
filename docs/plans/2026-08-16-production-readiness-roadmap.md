@@ -224,7 +224,7 @@ reconcilable.
   where `fee_bps` is described as round-trip but charged on every fill.
 - [x] **G2.4** Charge costs on every fill, including terminal liquidation. Terminal liquidation
   must be represented as a real fill event.
-- [ ] **G2.5** Implement double-entry-style portfolio accounting for cash, BTC inventory, cost
+- [x] **G2.5** Implement double-entry-style portfolio accounting for cash, BTC inventory, cost
   basis, realized P&L, unrealized P&L, fees, marked equity, and net liquidation value.
 - [ ] **G2.6** Distinguish order count, execution count, partial fills, round trips, closed trades,
   wins, losses, and open inventory.
@@ -238,15 +238,16 @@ reconcilable.
   engine version, costs, trades, equity curve, and metrics.
 
 **Increment record (2026-08-16):** `G2.1: PASS`; `G2.2: PASS`; `G2.3: PASS`; `G2.3a: PASS`;
-`G2.4: PASS`. The future-jump fixture proves next-open fills and end-of-data decisions expire
-unfilled. Directional tests prove buys cross the synthetic ask and slip upward while sells cross
-the synthetic bid and slip downward. Venue-profile tests keep Robinhood v1 spread-only treatment
-separate from v2 exchange-taker fee assumptions. Per-fill tests prove equal buy and sell notionals
-each pay the full configured fee rate, and CLI tests prove ambiguous flags are gone.
-Terminal-liquidation tests prove remaining inventory becomes a visible sell fill at the final close
-using the run's spread, slippage, and per-fill fee contract; the post-liquidation result is flat.
-See the G2.1 through G2.4 files under `docs/evidence/`. This is not a G2 gate pass; G2.5-G2.10 and
-all live-money stages remain locked.
+`G2.4: PASS`; `G2.5: PASS`. The future-jump fixture proves next-open fills and end-of-data
+decisions expire unfilled. Directional tests prove buys cross the synthetic ask and slip upward
+while sells cross the synthetic bid and slip downward. Venue-profile tests keep Robinhood v1
+spread-only treatment separate from v2 exchange-taker fee assumptions. Per-fill tests prove equal
+buy and sell notionals each pay the full configured fee rate, and CLI tests prove ambiguous flags
+are gone. Terminal-liquidation tests prove remaining inventory becomes a visible, costed sell fill
+and leaves the portfolio flat. The portfolio journal proves every cash/inventory change maps to a
+fill event and every mark satisfies the accounting identity with zero residual while separately
+reporting net liquidation value. See the G2.1 through G2.5 files under `docs/evidence/`. This is not
+a G2 gate pass; G2.6-G2.10 and all live-money stages remain locked.
 
 ### Exit criteria
 

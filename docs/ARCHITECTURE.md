@@ -90,8 +90,9 @@ bar t+1 open -> order eligible -> next-open fill
 ```
 
 The ordered event journal makes this sequence auditable and prevents the signal bar's close from
-also being its fill. See `docs/BACKTESTING.md`. Execution costs and accounting remain later G2
-increments.
+also being its fill. Every fill also links to an immutable weighted-average portfolio-journal entry;
+bar-close marks separately report mid-marked equity and costed net liquidation value. See
+`docs/BACKTESTING.md`. Trade lifecycle metrics and research statistics remain later G2 increments.
 
 ## BrokerPort (interface)
 

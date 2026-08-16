@@ -62,7 +62,7 @@ def test_backtest_runs_and_accounts():
     candles = _synth(100)
     res = run_backtest(
         candles,
-        starting_usd=Decimal("1000"),
+        starting_cash_usd=Decimal("1000"),
         qty_btc=Decimal("0.001"),
         strategy_cfg=SlowTrendConfig(fast_ema=3, slow_ema=8, order_qty_btc=Decimal("0.001")),
         source="test:synth",
@@ -73,17 +73,17 @@ def test_backtest_runs_and_accounts():
     assert len(res.fills) == 2
     assert [fill.side for fill in res.fills] == [Side.BUY, Side.SELL]
     assert res.position_before_terminal_liquidation_btc == Decimal("0.001")
-    assert res.final_position_btc == 0
+    assert res.final_inventory_btc == 0
     assert res.terminal_liquidation_fills == 1
     assert res.terminal_liquidation_qty_btc == Decimal("0.001")
     assert res.terminal_liquidation_fee_usd == res.fills[-1].fee_usd
-    assert res.final_usd > res.starting_usd
+    assert res.final_cash_usd > res.starting_cash_usd
     assert res.bars == 100
     assert res.equity_curve
-    assert res.max_equity_usd == res.final_usd + res.terminal_liquidation_fee_usd
+    assert res.max_marked_equity_usd == (res.final_cash_usd + res.terminal_liquidation_fee_usd)
     assert res.equity_curve[-1].stage == EquityPointStage.POST_TERMINAL_LIQUIDATION
-    assert res.equity_curve[-1].equity_usd == res.final_usd
-    assert res.equity_curve[-1].btc == 0
+    assert res.equity_curve[-1].marked_equity_usd == res.final_cash_usd
+    assert res.equity_curve[-1].inventory_btc == 0
 
 
 def test_write_backtest_report(tmp_path: Path):
@@ -97,9 +97,10 @@ def test_write_backtest_report(tmp_path: Path):
     assert paths["summary"].exists()
     assert paths["events"].exists()
     assert paths["fills"].exists()
+    assert paths["accounting"].exists()
     assert paths["equity"].exists()
     text = paths["summary"].read_text()
-    assert "pnl_usd" in text
+    summary = json.loads(text)
     assert "schema_version" in text
     assert '"execution_model": "next_bar_open"' in text
     assert '"quoted_spread_bps_assumption": "0"' in text
@@ -110,9 +111,24 @@ def test_write_backtest_report(tmp_path: Path):
     assert '"fee_calculation_basis": "executed_notional_per_fill"' in text
     assert '"transaction_fee_bps_per_fill_assumption": "5"' in text
     assert '"transaction_fee_bps_per_fill_applied": "5"' in text
-    assert '"schema_version": 6' in text
+    assert '"schema_version": 7' in text
     assert '"terminal_liquidation_model": "last_bar_close"' in text
     assert '"terminal_liquidation_fills": 1' in text
+    assert summary["accounting_method"] == ("weighted_average_gross_cost_basis_fees_separate")
+    assert summary["accounting_journal_entries"] == len(res.accounting_journal)
+    assert summary["final_cash_usd"] == str(res.final_cash_usd)
+    assert summary["final_inventory_btc"] == "0"
+    assert summary["final_inventory_cost_basis_usd"] == "0"
+    assert summary["realized_gross_pnl_usd"] == str(res.realized_gross_pnl_usd)
+    assert summary["unrealized_gross_pnl_usd"] == "0"
+    assert summary["cumulative_fees_usd"] == str(res.cumulative_fees_usd)
+    assert summary["marked_equity_usd"] == str(res.marked_equity_usd)
+    assert summary["net_liquidation_value_usd"] == str(res.net_liquidation_value_usd)
+    assert summary["accounting_identity_residual_usd"] == "0"
+    assert "pnl_usd" not in summary
+    assert "final_usd" not in summary
+    assert "fees_usd" not in summary
+    assert "return_pct" not in summary
     assert '"fee_bps"' not in text
     assert '"transaction_fee_bps_assumption"' not in text
     event_lines = paths["events"].read_text().splitlines()
@@ -120,8 +136,17 @@ def test_write_backtest_report(tmp_path: Path):
     fill_row = json.loads(paths["fills"].read_text().splitlines()[0])
     assert fill_row["venue"] == "unclassified"
     assert fill_row["market_data_source"] == "test"
+    accounting_rows = [json.loads(line) for line in paths["accounting"].read_text().splitlines()]
+    assert len(accounting_rows) == len(res.accounting_journal)
+    assert accounting_rows[0]["entry_type"] == "opening_balance"
+    assert accounting_rows[-1]["entry_type"] == "fill"
+    assert accounting_rows[-1]["accounting_identity_residual_usd"] == "0"
     equity_rows = [json.loads(line) for line in paths["equity"].read_text().splitlines()]
     assert equity_rows[-1]["stage"] == "post_terminal_liquidation"
+    assert equity_rows[-1]["cash_usd"] == str(res.final_cash_usd)
+    assert equity_rows[-1]["inventory_btc"] == "0"
+    assert equity_rows[-1]["marked_equity_usd"] == str(res.marked_equity_usd)
+    assert equity_rows[-1]["net_liquidation_value_usd"] == str(res.net_liquidation_value_usd)
 
 
 def test_next_open_execution_price_has_no_synthetic_cost():
@@ -216,7 +241,7 @@ def test_future_jump_cannot_fill_at_signal_close():
     candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
     result = run_backtest(
         candles,
-        starting_usd=Decimal("1000"),
+        starting_cash_usd=Decimal("1000"),
         qty_btc=Decimal("1"),
         strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
         source="fixture:future-jump",
@@ -264,9 +289,9 @@ def test_future_jump_cannot_fill_at_signal_close():
     assert terminal_fill.fee_usd == Decimal("0.0100")
     assert terminal_fill.raw["terminal_liquidation"] is True
     assert terminal_fill.raw["reference_close_usd"] == "20"
-    assert result.fees_usd == Decimal("0.0200")
-    assert result.final_usd == Decimal("999.9800")
-    assert result.final_position_btc == 0
+    assert result.cumulative_fees_usd == Decimal("0.0200")
+    assert result.final_cash_usd == Decimal("999.9800")
+    assert result.final_inventory_btc == 0
     assert result.position_before_terminal_liquidation_btc == 1
     assert result.terminal_liquidation_model == TerminalLiquidationModel.LAST_BAR_CLOSE
     request_event, terminal_fill_event = result.events[-2:]
@@ -281,7 +306,7 @@ def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
     candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
     result = run_backtest(
         candles,
-        starting_usd=Decimal("1000"),
+        starting_cash_usd=Decimal("1000"),
         qty_btc=Decimal("1"),
         transaction_fee_bps_per_fill_assumption=Decimal("0"),
         strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
@@ -318,7 +343,7 @@ def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
     assert terminal_fill.raw["reference_close_usd"] == "20"
     assert terminal_fill.raw["pre_slippage_touch_usd"] == "19.980"
     assert terminal_fill.raw["terminal_liquidation_model"] == "last_bar_close_bid_ask"
-    assert result.final_usd == Decimal("999.920000")
+    assert result.final_cash_usd == Decimal("999.920000")
     assert result.terminal_liquidation_model == (TerminalLiquidationModel.LAST_BAR_CLOSE_BID_ASK)
 
 
@@ -326,7 +351,7 @@ def test_robinhood_v1_profile_embeds_cost_in_spread_without_fee():
     candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
     result = run_backtest(
         candles,
-        starting_usd=Decimal("1000"),
+        starting_cash_usd=Decimal("1000"),
         qty_btc=Decimal("1"),
         strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
         source="fixture:future-jump",
@@ -346,14 +371,14 @@ def test_robinhood_v1_profile_embeds_cost_in_spread_without_fee():
     terminal_fill = result.fills[-1]
     assert terminal_fill.price_usd == Decimal("19.8080")
     assert terminal_fill.fee_usd == 0
-    assert result.fees_usd == 0
+    assert result.cumulative_fees_usd == 0
 
 
 def test_robinhood_v2_profile_charges_taker_fee_assumption_on_fill_notional():
     candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
     result = run_backtest(
         candles,
-        starting_usd=Decimal("1000"),
+        starting_cash_usd=Decimal("1000"),
         qty_btc=Decimal("1"),
         strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
         source="fixture:future-jump",
@@ -384,7 +409,7 @@ def test_robinhood_v2_profile_charges_taker_fee_assumption_on_fill_notional():
     assert terminal_fill.price_usd == Decimal("19.960020")
     assert terminal_fill.fee_usd == Decimal("0.189620190")
     assert result.terminal_liquidation_fee_usd == Decimal("0.189620190")
-    assert result.fees_usd == Decimal("0.380000380")
+    assert result.cumulative_fees_usd == Decimal("0.380000380")
     assert result.summary()["terminal_liquidation_fee_usd"] == "0.1896201900"
 
 
@@ -392,7 +417,7 @@ def test_signal_on_final_bar_expires_without_fill():
     candles = load_candles_csv(FUTURE_JUMP_FIXTURE)[:-1]
     result = run_backtest(
         candles,
-        starting_usd=Decimal("1000"),
+        starting_cash_usd=Decimal("1000"),
         qty_btc=Decimal("1"),
         strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
         source="fixture:future-jump",
@@ -403,7 +428,7 @@ def test_signal_on_final_bar_expires_without_fill():
     assert result.end_of_data_orders == 1
     assert result.events[-1].event_type == BacktestEventType.ORDER_EXPIRED
     assert result.events[-1].details["reason"] == "end_of_data_before_eligible_bar"
-    assert result.final_position_btc == 0
+    assert result.final_inventory_btc == 0
     assert result.position_before_terminal_liquidation_btc == 0
     assert result.terminal_liquidation_fills == 0
     assert result.terminal_liquidation_qty_btc == 0

@@ -2,12 +2,13 @@
 
 ## Current gate status
 
-G2.1 through G2.4 are implemented. The engine no longer fills a decision at the close that produced
+G2.1 through G2.5 are implemented. The engine no longer fills a decision at the close that produced
 its signal, every run declares one of two deterministic next-open execution models,
 venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate, and every transaction
 fee is explicitly defined per execution fill. End-of-data liquidation is now a visible, fully
 costed sell fill that leaves the reported portfolio flat. The rest of G2 remains incomplete, so
-backtest output is still non-promotable.
+backtest output is still non-promotable. Every fill now posts through an immutable accounting
+journal, and every mark distinguishes mid-marked equity from costed net liquidation value.
 
 ## Event order
 
@@ -69,8 +70,8 @@ Example:
 At a `$20` next open, this produces a `$19.980` synthetic bid, `$20.020` synthetic ask, and
 `$20.040020` simulated buy fill. Summary, event, and fill artifacts record the reference open,
 both synthetic touches, pre-slippage touch, fill price, and named assumptions. Artifact schema
-version 6 includes this contract together with the G2.3/G2.3a cost fields and G2.4 terminal
-liquidation fields.
+version 7 includes this contract together with the G2.3/G2.3a cost fields, G2.4 terminal
+liquidation fields, and G2.5 accounting records.
 
 ## Venue cost profiles
 
@@ -129,7 +130,7 @@ The CLI rejects both removed ambiguous flags:
 --transaction-fee-bps-assumption
 ```
 
-Schema version 6 records `fee_calculation_basis=executed_notional_per_fill`, the configured
+Schema version 7 records `fee_calculation_basis=executed_notional_per_fill`, the configured
 `transaction_fee_bps_per_fill_assumption`, and the per-fill rate applied in summary, event, and fill
 artifacts.
 
@@ -164,12 +165,57 @@ position_before_terminal_liquidation_btc
 terminal_liquidation_fills
 terminal_liquidation_qty_btc
 terminal_liquidation_fee_usd
-final_position_btc
+final_inventory_btc
 ```
 
-When there is inventory, `final_position_btc` is zero and the last equity artifact has
+When there is inventory, `final_inventory_btc` is zero and the last equity artifact has
 `stage=post_terminal_liquidation`. When there is no inventory, no synthetic terminal order or fill
 is created.
+
+## Portfolio accounting contract
+
+G2.5 routes the opening balance and every ordinary or terminal fill through one exact-`Decimal`,
+append-only portfolio journal. A fill records its cash, BTC inventory, gross cost-basis, gross
+realized-P&L, and fee deltas together with all after-state balances. Its `event_sequence` points to
+the corresponding fill in `events.jsonl`; fills also record their `accounting_journal_sequence`.
+The engine rejects overbuys, oversells, negative fees, invalid prices, and invalid marks before
+they can create a journal entry.
+
+The accounting method is weighted-average gross cost basis with fees separate:
+
+```text
+buy cost-basis increase = executed quantity * buy fill price
+sell allocated basis    = pre-sell cost basis * sold quantity / pre-sell inventory
+realized gross P&L       = sell executed notional - allocated basis
+unrealized gross P&L     = inventory * mark price - remaining cost basis
+```
+
+Entry and exit fees are never hidden in cost basis or gross P&L. This makes the reconciliation
+identity explicit at every mark:
+
+```text
+marked equity
+  = cash + inventory * mark price
+  = starting cash + realized gross P&L + unrealized gross P&L - cumulative fees
+```
+
+Every journal entry and equity snapshot records `accounting_identity_residual_usd`; a nonzero
+residual raises an error. `accounting.jsonl` preserves the immutable opening and fill transitions.
+
+Marked equity values inventory at the candle close mid. Net liquidation value answers a different
+question: how much cash the portfolio would hold after selling its open BTC using the run's
+declared spread, adverse slippage, and per-fill fee assumptions:
+
+```text
+net liquidation value
+  = cash + inventory * estimated liquidation sell price - estimated liquidation fee
+```
+
+Schema version 7 and the Python result model therefore use explicit names instead of the old
+ambiguous `pnl_usd`, `final_usd`, `fees_usd`, and `return_pct` names. They report final cash and inventory,
+remaining cost basis, average entry, realized and unrealized gross P&L, cumulative fees, marked
+equity, net liquidation value, both after-fee P&L views, and net-liquidation return. For a terminally
+liquidated flat run, marked equity and net liquidation value converge to final cash.
 
 ## Anti-look-ahead proof
 
@@ -185,8 +231,6 @@ signal bar_close < decision_accepted < next bar_open < order_eligible < fill
 
 - Robinhood profile rates remain configured research assumptions, not account-observed costs. A
   future pre-trade adapter must read or verify the applicable account tier.
-- Cash, inventory, cost basis, realized/unrealized P&L, and liquidation value are not yet governed
-  by the G2.5 accounting journal.
 - Trade lifecycle counts, benchmarks, statistics, and fully reproducible run identity remain open.
 
 No result from this intermediate engine can support a profitability or live-money decision.
