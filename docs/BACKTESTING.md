@@ -2,13 +2,14 @@
 
 ## Current gate status
 
-G2.1 through G2.6 are implemented. The engine no longer fills a decision at the close that produced
+G2.1 through G2.7 are implemented. The engine no longer fills a decision at the close that produced
 its signal, every run declares one of two deterministic next-open execution models,
 venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate, and every transaction
 fee is explicitly defined per execution fill. End-of-data liquidation is now a visible, fully
 costed sell fill that leaves the reported portfolio flat. The rest of G2 remains incomplete, so
 backtest output is still non-promotable. Every fill now posts through an immutable accounting
-journal, and every mark distinguishes mid-marked equity from costed net liquidation value.
+journal, and every mark distinguishes mid-marked equity from costed net liquidation value. Every
+run now also carries three cost-equivalent passive benchmarks.
 
 ## Event order
 
@@ -70,8 +71,8 @@ Example:
 At a `$20` next open, this produces a `$19.980` synthetic bid, `$20.020` synthetic ask, and
 `$20.040020` simulated buy fill. Summary, event, and fill artifacts record the reference open,
 both synthetic touches, pre-slippage touch, fill price, and named assumptions. Artifact schema
-version 8 includes this contract together with the G2.3/G2.3a cost fields, G2.4 terminal
-liquidation fields, G2.5 accounting records, and G2.6 lifecycle records.
+version 9 includes this contract together with the G2.3/G2.3a cost fields, G2.4 terminal
+liquidation fields, G2.5 accounting records, G2.6 lifecycle records, and G2.7 benchmarks.
 
 ## Venue cost profiles
 
@@ -130,7 +131,7 @@ The CLI rejects both removed ambiguous flags:
 --transaction-fee-bps-assumption
 ```
 
-Schema version 8 records `fee_calculation_basis=executed_notional_per_fill`, the configured
+Schema version 9 records `fee_calculation_basis=executed_notional_per_fill`, the configured
 `transaction_fee_bps_per_fill_assumption`, and the per-fill rate applied in summary, event, and fill
 artifacts.
 
@@ -211,7 +212,7 @@ net liquidation value
   = cash + inventory * estimated liquidation sell price - estimated liquidation fee
 ```
 
-Schema version 8 and the Python result model therefore use explicit names instead of the old
+Schema version 9 and the Python result model therefore use explicit names instead of the old
 ambiguous `pnl_usd`, `final_usd`, `fees_usd`, and `return_pct` names. They report final cash and
 inventory, remaining cost basis, average entry, realized and unrealized gross P&L, cumulative fees,
 marked equity, net liquidation value, both after-fee P&L views, and net-liquidation return. For a
@@ -249,10 +250,51 @@ two-execution entry and two-execution exit is two orders, four executions, four 
 executions, two closed trades, and one round trip. This prevents the old practice of using `fills`,
 `trades`, and `round trips` as synonyms.
 
-Schema version 8 adds `lifecycle.jsonl` with one lifecycle summary, one record per order, one per
+Schema version 9 carries `lifecycle.jsonl` with one lifecycle summary, one record per order, one per
 closed trade, and one per completed round trip. Summary and CLI output separately report order and
 execution states, partial fills, closed-trade outcomes, round trips, and open inventory/basis/entry
 fees.
+
+## Benchmark contract
+
+G2.7 produces three benchmarks from the same approved bars:
+
+| Benchmark | Capital and schedule |
+|---|---|
+| Cash | Holds the full starting cash balance; no executions or costs |
+| Matched-notional buy-and-hold | Buys once at the first bar open |
+| Periodic DCA | Splits the same total gross buy notional across configurable bar intervals |
+
+The matched gross notional is the strategy's maximum concurrent gross inventory cost basis across
+its immutable journal. It is not cumulative buy turnover, which could reuse the same capital many
+times and create an impossible passive allocation. If that gross amount plus its entry fee would
+exceed starting cash, the benchmark caps it at:
+
+```text
+maximum affordable gross notional
+  = starting cash / (1 + configured per-fill fee rate)
+```
+
+Both invested benchmarks retain all unused cash. They execute buys at the declared synthetic
+first/periodic bar-open buy price and liquidate all BTC at the final candle close using the same
+synthetic bid, adverse slippage, and venue fee treatment as the strategy. DCA defaults to one entry
+every 168 hourly bars and is configurable with `--benchmark-dca-interval-bars`. The schedule begins
+at the first bar and never observes future prices.
+
+Absolute comparison reports strategy-minus-benchmark after-fee P&L and return percentage points.
+G2.7's deliberately narrow risk-adjusted measure is:
+
+```text
+net P&L over maximum drawdown = final net P&L after fees / maximum dollar NLV drawdown
+```
+
+The ratio is undefined when maximum drawdown is zero; artifacts record that state instead of
+inventing zero or infinity. This is not called Sharpe or Calmar and is not annualized. Volatility,
+Sharpe, Sortino, drawdown duration, profit factor, expectancy, fee drag, and alpha remain G2.8.
+
+Schema version 9 adds `benchmarks.jsonl`, `benchmark_fills.jsonl`, and
+`benchmark_equity.jsonl`. These preserve the benchmark contract, three results, three comparisons,
+every passive execution, and every bar-close net-liquidation point.
 
 ## Anti-look-ahead proof
 
@@ -268,7 +310,7 @@ signal bar_close < decision_accepted < next bar_open < order_eligible < fill
 
 - Robinhood profile rates remain configured research assumptions, not account-observed costs. A
   future pre-trade adapter must read or verify the applicable account tier.
-- Benchmarks, research statistics, broader golden/failure fixtures, and fully reproducible run
-  identity remain open.
+- Research statistics, broader golden/failure fixtures, and fully reproducible run identity remain
+  open.
 
 No result from this intermediate engine can support a profitability or live-money decision.

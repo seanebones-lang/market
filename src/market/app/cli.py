@@ -19,6 +19,13 @@ from market.domain.models import Mode
 console = Console()
 
 
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="market", description="BTC spot autotrader")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -133,6 +140,12 @@ def main(argv: list[str] | None = None) -> int:
         "--adverse-slippage-bps-assumption",
         default="0",
         help="Assumed adverse slippage in bps from the side-specific synthetic touch",
+    )
+    bt_p.add_argument(
+        "--benchmark-dca-interval-bars",
+        type=_positive_int,
+        default=168,
+        help="Positive bar interval between periodic-DCA benchmark entries (default: 168)",
     )
     bt_p.add_argument(
         "--fetch",
@@ -371,6 +384,7 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
             if args.transaction_fee_bps_per_fill_assumption is not None
             else None
         ),
+        benchmark_dca_interval_bars=int(args.benchmark_dca_interval_bars),
     )
 
     run_id = args.run_id or datetime.now(UTC).strftime("bt_%Y%m%dT%H%M%SZ")
@@ -436,6 +450,41 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         f"max_net_liquidation_drawdown_usd="
         f"{result.max_net_liquidation_drawdown_usd}"
     )
+    console.print(
+        "benchmark_matched_notional_method="
+        f"{result.benchmarks.matched_notional_method} "
+        "benchmark_matched_notional_applied_usd="
+        f"{result.benchmarks.matched_notional_applied_usd} "
+        f"benchmark_dca_interval_bars={result.benchmarks.dca_interval_bars}"
+    )
+    for benchmark in result.benchmarks.results:
+        risk_adjusted = (
+            str(benchmark.net_pnl_over_max_drawdown_ratio)
+            if benchmark.net_pnl_over_max_drawdown_ratio is not None
+            else "undefined_zero_drawdown"
+        )
+        console.print(
+            f"benchmark={benchmark.kind.value} "
+            f"net_pnl_after_fees_usd={benchmark.net_pnl_after_fees_usd} "
+            f"net_return_pct={benchmark.net_return_pct} "
+            "max_net_liquidation_drawdown_usd="
+            f"{benchmark.max_net_liquidation_drawdown_usd} "
+            f"net_pnl_over_max_drawdown_ratio={risk_adjusted}"
+        )
+    for comparison in result.benchmarks.comparisons:
+        risk_adjusted_difference = (
+            str(comparison.strategy_minus_benchmark_risk_adjusted_ratio)
+            if comparison.strategy_minus_benchmark_risk_adjusted_ratio is not None
+            else "undefined"
+        )
+        console.print(
+            f"strategy_vs={comparison.benchmark.value} "
+            "absolute_pnl_difference_usd="
+            f"{comparison.strategy_minus_benchmark_net_pnl_usd} "
+            "risk_adjusted_ratio_difference="
+            f"{risk_adjusted_difference} "
+            f"risk_adjusted_status={comparison.risk_adjusted_comparison_status.value}"
+        )
     if result.fills:
         f0, f1 = result.fills[0], result.fills[-1]
         console.print(f"first_fill {f0.side.value} {f0.qty_btc}@{f0.price_usd} {f0.ts.isoformat()}")
@@ -451,6 +500,14 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         + len(result.lifecycle.round_trips)
     )
     console.print(f"       {paths['lifecycle']} ({lifecycle_rows} rows)")
+    benchmark_rows = 1 + len(result.benchmarks.results) + len(result.benchmarks.comparisons)
+    benchmark_fill_rows = sum(len(benchmark.fills) for benchmark in result.benchmarks.results)
+    benchmark_equity_rows = sum(
+        len(benchmark.equity_curve) for benchmark in result.benchmarks.results
+    )
+    console.print(f"       {paths['benchmarks']} ({benchmark_rows} rows)")
+    console.print(f"       {paths['benchmark_fills']} ({benchmark_fill_rows} rows)")
+    console.print(f"       {paths['benchmark_equity']} ({benchmark_equity_rows} rows)")
     console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")
     return 0
 

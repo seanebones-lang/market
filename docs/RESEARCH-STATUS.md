@@ -40,5 +40,7 @@ G2.3a schema defines each transaction fee per executed fill, and G2.4 makes term
 fully costed sell fill that leaves new runs flat. G2.5 adds an immutable portfolio journal and
 separate gross P&L, fee, marked-equity, and net-liquidation accounts. G2.6 adds explicit order,
 execution, partial-fill, closed-trade, round-trip, outcome, and open-inventory lifecycle metrics.
+G2.7 adds cash, peak-cost-basis-matched buy-and-hold, and periodic-DCA comparators under the same
+execution and cost assumptions, plus absolute and net-P&L-over-maximum-drawdown comparisons.
 The next valid result begins only after the complete G2 gate passes and uses the verified G1
 manifest. Profitability can never be guaranteed.

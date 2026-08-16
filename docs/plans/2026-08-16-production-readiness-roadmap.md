@@ -228,7 +228,7 @@ reconcilable.
   basis, realized P&L, unrealized P&L, fees, marked equity, and net liquidation value.
 - [x] **G2.6** Distinguish order count, execution count, partial fills, round trips, closed trades,
   wins, losses, and open inventory.
-- [ ] **G2.7** Add cash, matched-notional buy-and-hold, and periodic-DCA benchmarks. Compare both
+- [x] **G2.7** Add cash, matched-notional buy-and-hold, and periodic-DCA benchmarks. Compare both
   absolute and risk-adjusted performance.
 - [ ] **G2.8** Report turnover, exposure time, drawdown duration, volatility, Sharpe/Sortino with
   stated annualization, profit factor, expectancy, fee drag, and benchmark alpha.
@@ -238,8 +238,8 @@ reconcilable.
   engine version, costs, trades, equity curve, and metrics.
 
 **Increment record (2026-08-16):** `G2.1: PASS`; `G2.2: PASS`; `G2.3: PASS`; `G2.3a: PASS`;
-`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`. The future-jump fixture proves next-open fills and
-end-of-data decisions expire unfilled. Directional tests prove buys cross the synthetic ask and
+`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`; `G2.7: PASS`. The future-jump fixture proves next-open
+fills and end-of-data decisions expire unfilled. Directional tests prove buys cross the synthetic ask and
 slip upward while sells cross the synthetic bid and slip downward. Venue-profile tests keep
 Robinhood v1 spread-only treatment separate from v2 exchange-taker fee assumptions. Per-fill tests
 prove equal buy and sell notionals each pay the full configured fee rate, and CLI tests prove
@@ -248,8 +248,10 @@ costed sell fill and leaves the portfolio flat. The portfolio journal proves eve
 change maps to a fill event and every mark satisfies the accounting identity with zero residual
 while separately reporting net liquidation value. Lifecycle fixtures prove multiple executions and
 partial fills do not inflate order, closed-trade, or round-trip counts, and fee-aware outcomes
-reconcile to the accounting journal. See the G2.1 through G2.6 files under `docs/evidence/`. This is
-not a G2 gate pass; G2.7-G2.10 and all live-money stages remain locked.
+reconcile to the accounting journal. Cost-equivalent fixtures compare the strategy against cash,
+peak-cost-basis-matched buy-and-hold, and periodic DCA in absolute dollars and net-P&L-over-maximum-
+drawdown terms. See the G2.1 through G2.7 files under `docs/evidence/`. This is not a G2 gate pass;
+G2.8-G2.10 and all live-money stages remain locked.
 
 ### Exit criteria
 

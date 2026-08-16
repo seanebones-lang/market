@@ -43,7 +43,8 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Continue G2.7 with cash, matched-notional buy-and-hold, and periodic-DCA benchmarks.
+1. Continue G2.8 with turnover, exposure, drawdown-duration, volatility, Sharpe/Sortino, profit
+   factor, expectancy, fee-drag, and benchmark-alpha statistics.
 2. Build G3 walk-forward research on the verified G1 dataset segments.
 3. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
 4. Create a Robinhood credential with read actions only after the G5 read-only adapter gate begins.

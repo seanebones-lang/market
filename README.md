@@ -54,9 +54,10 @@ the old ambiguous CLI flags. G2.4 now represents end-of-data liquidation as a re
 sell fill and ends each liquidated run flat. G2.5 routes every fill through an immutable accounting
 journal and separates cost basis, gross realized/unrealized P&L, fees, marked equity, and net
 liquidation value. G2.6 now distinguishes orders, executions, partial fills, closed trades,
-flat-to-flat round trips, fee-aware outcomes, and open inventory. The backtester remains
-exploratory until the rest of G2 implements benchmarks, statistics, broader golden tests, and
-reproducible run identity.
+flat-to-flat round trips, fee-aware outcomes, and open inventory. G2.7 adds cost-equivalent cash,
+matched-notional buy-and-hold, and periodic-DCA benchmarks with absolute and drawdown-adjusted
+comparisons. The backtester remains exploratory until the rest of G2 implements research
+statistics, broader golden tests, and reproducible run identity.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.

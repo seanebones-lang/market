@@ -93,8 +93,9 @@ The ordered event journal makes this sequence auditable and prevents the signal 
 also being its fill. Every fill also links to an immutable weighted-average portfolio-journal entry;
 bar-close marks separately report mid-marked equity and costed net liquidation value. See
 `docs/BACKTESTING.md`. A separate lifecycle analyzer reconciles order requests, executions,
-closed-trade outcomes, flat-to-flat round trips, and remaining inventory. Benchmarks and research
-statistics remain later G2 increments.
+closed-trade outcomes, flat-to-flat round trips, and remaining inventory. A separate benchmark
+analyzer replays cash, matched-notional buy-and-hold, and periodic DCA under the same synthetic
+execution and venue-cost contract. Full research statistics remain a later G2 increment.
 
 ## BrokerPort (interface)
 

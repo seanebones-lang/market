@@ -99,6 +99,9 @@ def test_write_backtest_report(tmp_path: Path):
     assert paths["fills"].exists()
     assert paths["accounting"].exists()
     assert paths["lifecycle"].exists()
+    assert paths["benchmarks"].exists()
+    assert paths["benchmark_fills"].exists()
+    assert paths["benchmark_equity"].exists()
     assert paths["equity"].exists()
     text = paths["summary"].read_text()
     summary = json.loads(text)
@@ -112,7 +115,7 @@ def test_write_backtest_report(tmp_path: Path):
     assert '"fee_calculation_basis": "executed_notional_per_fill"' in text
     assert '"transaction_fee_bps_per_fill_assumption": "5"' in text
     assert '"transaction_fee_bps_per_fill_applied": "5"' in text
-    assert '"schema_version": 8' in text
+    assert '"schema_version": 9' in text
     assert '"terminal_liquidation_model": "last_bar_close"' in text
     assert '"terminal_liquidation_fills": 1' in text
     assert summary["accounting_method"] == ("weighted_average_gross_cost_basis_fees_separate")
@@ -131,6 +134,10 @@ def test_write_backtest_report(tmp_path: Path):
     assert summary["round_trip_count"] == res.lifecycle.round_trip_count
     assert summary["closed_trade_count"] == res.lifecycle.closed_trade_count
     assert summary["open_inventory_btc"] == "0"
+    assert summary["benchmark_count"] == 3
+    assert summary["benchmark_dca_interval_bars"] == 168
+    assert len(summary["benchmarks"]) == 3
+    assert len(summary["benchmark_comparisons"]) == 3
     assert "pnl_usd" not in summary
     assert "final_usd" not in summary
     assert "fees_usd" not in summary
@@ -158,6 +165,28 @@ def test_write_backtest_report(tmp_path: Path):
     assert sum(row["type"] == "round_trip" for row in lifecycle_rows) == (
         res.lifecycle.round_trip_count
     )
+    benchmark_rows = [json.loads(line) for line in paths["benchmarks"].read_text().splitlines()]
+    assert benchmark_rows[0]["type"] == "benchmark_contract"
+    assert sum(row["type"] == "benchmark_result" for row in benchmark_rows) == 3
+    assert sum(row["type"] == "benchmark_comparison" for row in benchmark_rows) == 3
+    benchmark_fill_rows = [
+        json.loads(line) for line in paths["benchmark_fills"].read_text().splitlines()
+    ]
+    assert len(benchmark_fill_rows) == sum(
+        len(benchmark.fills) for benchmark in res.benchmarks.results
+    )
+    assert all(row["type"] == "benchmark_fill" for row in benchmark_fill_rows)
+    assert all(row["execution_model"] == "next_bar_open" for row in benchmark_fill_rows)
+    assert all(row["transaction_fee_bps_per_fill_applied"] == "5" for row in benchmark_fill_rows)
+    benchmark_equity_rows = [
+        json.loads(line) for line in paths["benchmark_equity"].read_text().splitlines()
+    ]
+    assert len(benchmark_equity_rows) == sum(
+        len(benchmark.equity_curve) for benchmark in res.benchmarks.results
+    )
+    assert all(row["type"] == "benchmark_equity" for row in benchmark_equity_rows)
+    assert all("liquidation_sell_price_usd" in row for row in benchmark_equity_rows)
+    assert all("estimated_liquidation_fee_usd" in row for row in benchmark_equity_rows)
     equity_rows = [json.loads(line) for line in paths["equity"].read_text().splitlines()]
     assert equity_rows[-1]["stage"] == "post_terminal_liquidation"
     assert equity_rows[-1]["cash_usd"] == str(res.final_cash_usd)

@@ -16,6 +16,11 @@ from market.backtest.accounting import (
     PortfolioJournalEntry,
     PortfolioSnapshot,
 )
+from market.backtest.benchmarks import (
+    BenchmarkAnalysis,
+    BenchmarkMarketPoint,
+    analyze_benchmarks,
+)
 from market.backtest.costs import (
     BPS_DIVISOR,
     CostInputClassification,
@@ -36,7 +41,7 @@ from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Si
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 class ExecutionModel(str, Enum):
@@ -266,6 +271,7 @@ class BacktestResult:
     equity_curve: list[EquityPoint] = field(default_factory=list)
     accounting_journal: list[PortfolioJournalEntry] = field(default_factory=list)
     lifecycle: LifecycleAnalysis = field(default_factory=LifecycleAnalysis)
+    benchmarks: BenchmarkAnalysis = field(default_factory=BenchmarkAnalysis)
     final_inventory_btc: Decimal = Decimal("0")
     final_cash_usd: Decimal = Decimal("0")
     starting_cash_usd: Decimal = Decimal("0")
@@ -380,6 +386,7 @@ class BacktestResult:
                 self.position_before_terminal_liquidation_btc
             ),
             **self.lifecycle.summary(),
+            **self.benchmarks.summary(),
         }
 
 
@@ -396,6 +403,7 @@ def run_backtest(
     adverse_slippage_bps_assumption: Decimal = Decimal("0"),
     venue_cost_profile: VenueCostProfile = VenueCostProfile.LEGACY_UNCLASSIFIED,
     transaction_fee_bps_per_fill_assumption: Decimal | None = None,
+    benchmark_dca_interval_bars: int = 168,
 ) -> BacktestResult:
     """Long-only event replay with decisions after close and fills at the next bar open."""
     execution_assumptions = ExecutionAssumptions(
@@ -418,6 +426,15 @@ def run_backtest(
     cost_metadata = venue_cost_assumptions.metadata
     account = PortfolioAccount(starting_cash_usd=starting_cash_usd)
     if not candles:
+        benchmarks = analyze_benchmarks(
+            starting_cash_usd=starting_cash_usd,
+            strategy_accounting_journal=account.journal,
+            strategy_net_pnl_after_fees_usd=Decimal("0"),
+            strategy_max_net_liquidation_drawdown_usd=Decimal("0"),
+            market_points=[],
+            venue_cost=venue_cost,
+            dca_interval_bars=benchmark_dca_interval_bars,
+        )
         return BacktestResult(
             starting_cash_usd=starting_cash_usd,
             final_cash_usd=starting_cash_usd,
@@ -430,6 +447,7 @@ def run_backtest(
                 fills=[],
                 accounting_journal=account.journal,
             ),
+            benchmarks=benchmarks,
             source=source,
             venue_cost_profile=venue_cost_assumptions.profile,
             venue=cost_metadata.venue,
@@ -448,6 +466,24 @@ def run_backtest(
         )
 
     require_clean_candles(candles)
+    benchmark_market_points = [
+        BenchmarkMarketPoint(
+            ts=bar.ts.isoformat(),
+            close_ts=bar.close_time.isoformat(),
+            reference_open_usd=bar.open,
+            buy_fill_price_usd=calculate_execution_price(
+                execution_assumptions,
+                Side.BUY,
+                bar.open,
+            ).fill_price_usd,
+            mark_price_usd=bar.close,
+            liquidation_sell_price_usd=calculate_terminal_liquidation_price(
+                execution_assumptions,
+                bar.close,
+            ).fill_price_usd,
+        )
+        for bar in candles
+    ]
 
     strategy_cfg = strategy_cfg or SlowTrendConfig(order_qty_btc=qty_btc)
     risk_cfg = risk_cfg or RiskConfig(
@@ -885,6 +921,15 @@ def run_backtest(
         accounting_journal=account.journal,
         unfilled_dispositions=unfilled_dispositions,
     )
+    benchmarks = analyze_benchmarks(
+        starting_cash_usd=starting_cash_usd,
+        strategy_accounting_journal=account.journal,
+        strategy_net_pnl_after_fees_usd=(final_snapshot.net_liquidation_pnl_after_fees_usd),
+        strategy_max_net_liquidation_drawdown_usd=max_dd,
+        market_points=benchmark_market_points,
+        venue_cost=venue_cost,
+        dca_interval_bars=benchmark_dca_interval_bars,
+    )
 
     return BacktestResult(
         fills=fills,
@@ -892,6 +937,7 @@ def run_backtest(
         equity_curve=equity_curve,
         accounting_journal=list(account.journal),
         lifecycle=lifecycle,
+        benchmarks=benchmarks,
         final_inventory_btc=account.inventory_btc,
         final_cash_usd=account.cash_usd,
         starting_cash_usd=starting_cash_usd,
@@ -945,7 +991,7 @@ def write_backtest_report(
     out_dir: str | Path,
     run_id: str,
 ) -> dict[str, Path]:
-    """Write summary, events, fills, accounting, lifecycle, and marks under a run directory."""
+    """Write strategy, lifecycle, benchmark, accounting, and equity artifacts."""
     out = Path(out_dir) / run_id
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / "summary.json"
@@ -953,6 +999,9 @@ def write_backtest_report(
     fills_path = out / "fills.jsonl"
     accounting_path = out / "accounting.jsonl"
     lifecycle_path = out / "lifecycle.jsonl"
+    benchmarks_path = out / "benchmarks.jsonl"
+    benchmark_fills_path = out / "benchmark_fills.jsonl"
+    benchmark_equity_path = out / "benchmark_equity.jsonl"
     equity_path = out / "equity.jsonl"
 
     summary_path.write_text(
@@ -1058,6 +1107,95 @@ def write_backtest_report(
                 )
                 + "\n"
             )
+    with benchmarks_path.open("w", encoding="utf-8") as f:
+        contract = result.benchmarks.summary()
+        contract.pop("benchmarks")
+        contract.pop("benchmark_comparisons")
+        f.write(
+            json.dumps(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "type": "benchmark_contract",
+                    "run_id": run_id,
+                    **contract,
+                }
+            )
+            + "\n"
+        )
+        for benchmark in result.benchmarks.results:
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "benchmark_result",
+                        "run_id": run_id,
+                        **benchmark.summary(),
+                    }
+                )
+                + "\n"
+            )
+        for comparison in result.benchmarks.comparisons:
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "benchmark_comparison",
+                        "run_id": run_id,
+                        **comparison.summary(),
+                    }
+                )
+                + "\n"
+            )
+    with benchmark_fills_path.open("w", encoding="utf-8") as f:
+        for benchmark in result.benchmarks.results:
+            for fill in benchmark.fills:
+                f.write(
+                    json.dumps(
+                        {
+                            "schema_version": SCHEMA_VERSION,
+                            "type": "benchmark_fill",
+                            "run_id": run_id,
+                            "benchmark": benchmark.kind.value,
+                            "venue_cost_profile": result.venue_cost_profile.value,
+                            "execution_model": result.execution_model.value,
+                            "quoted_spread_bps_assumption": str(
+                                result.quoted_spread_bps_assumption
+                            ),
+                            "adverse_slippage_bps_assumption": str(
+                                result.adverse_slippage_bps_assumption
+                            ),
+                            "transaction_fee_bps_per_fill_applied": str(
+                                result.transaction_fee_bps_per_fill_applied
+                            ),
+                            "fill": fill.model_dump(mode="json"),
+                        }
+                    )
+                    + "\n"
+                )
+    with benchmark_equity_path.open("w", encoding="utf-8") as f:
+        for benchmark in result.benchmarks.results:
+            for point in benchmark.equity_curve:
+                f.write(
+                    json.dumps(
+                        {
+                            "schema_version": SCHEMA_VERSION,
+                            "type": "benchmark_equity",
+                            "run_id": run_id,
+                            "benchmark": benchmark.kind.value,
+                            "sequence": point.sequence,
+                            "ts": point.ts,
+                            "cash_usd": str(point.cash_usd),
+                            "inventory_btc": str(point.inventory_btc),
+                            "mark_price_usd": str(point.mark_price_usd),
+                            "liquidation_sell_price_usd": str(point.liquidation_sell_price_usd),
+                            "estimated_liquidation_fee_usd": str(
+                                point.estimated_liquidation_fee_usd
+                            ),
+                            "net_liquidation_value_usd": str(point.net_liquidation_value_usd),
+                        }
+                    )
+                    + "\n"
+                )
     with equity_path.open("w", encoding="utf-8") as f:
         for pt in result.equity_curve:
             row = {
@@ -1094,5 +1232,8 @@ def write_backtest_report(
         "fills": fills_path,
         "accounting": accounting_path,
         "lifecycle": lifecycle_path,
+        "benchmarks": benchmarks_path,
+        "benchmark_fills": benchmark_fills_path,
+        "benchmark_equity": benchmark_equity_path,
         "equity": equity_path,
     }
