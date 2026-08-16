@@ -95,7 +95,9 @@ bar-close marks separately report mid-marked equity and costed net liquidation v
 `docs/BACKTESTING.md`. A separate lifecycle analyzer reconciles order requests, executions,
 closed-trade outcomes, flat-to-flat round trips, and remaining inventory. A separate benchmark
 analyzer replays cash, matched-notional buy-and-hold, and periodic DCA under the same synthetic
-execution and venue-cost contract. Full research statistics remain a later G2 increment.
+execution and venue-cost contract. A performance analyzer consumes the unsampled costed-NLV series
+for the strategy and benchmarks and produces declared hourly risk/trade statistics plus aligned OLS
+benchmark alpha.
 
 ## BrokerPort (interface)
 

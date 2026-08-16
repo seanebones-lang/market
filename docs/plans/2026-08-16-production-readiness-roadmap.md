@@ -230,7 +230,7 @@ reconcilable.
   wins, losses, and open inventory.
 - [x] **G2.7** Add cash, matched-notional buy-and-hold, and periodic-DCA benchmarks. Compare both
   absolute and risk-adjusted performance.
-- [ ] **G2.8** Report turnover, exposure time, drawdown duration, volatility, Sharpe/Sortino with
+- [x] **G2.8** Report turnover, exposure time, drawdown duration, volatility, Sharpe/Sortino with
   stated annualization, profit factor, expectancy, fee drag, and benchmark alpha.
 - [ ] **G2.9** Add golden accounting tests, next-bar anti-look-ahead tests, spread/slippage direction
   tests, partial-fill tests, insufficient-cash tests, and terminal-fee tests.
@@ -238,8 +238,9 @@ reconcilable.
   engine version, costs, trades, equity curve, and metrics.
 
 **Increment record (2026-08-16):** `G2.1: PASS`; `G2.2: PASS`; `G2.3: PASS`; `G2.3a: PASS`;
-`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`; `G2.7: PASS`. The future-jump fixture proves next-open
-fills and end-of-data decisions expire unfilled. Directional tests prove buys cross the synthetic ask and
+`G2.4: PASS`; `G2.5: PASS`; `G2.6: PASS`; `G2.7: PASS`; `G2.8: PASS`. The future-jump fixture proves
+next-open fills and end-of-data decisions expire unfilled. Directional tests prove buys cross the
+synthetic ask and
 slip upward while sells cross the synthetic bid and slip downward. Venue-profile tests keep
 Robinhood v1 spread-only treatment separate from v2 exchange-taker fee assumptions. Per-fill tests
 prove equal buy and sell notionals each pay the full configured fee rate, and CLI tests prove
@@ -250,8 +251,10 @@ while separately reporting net liquidation value. Lifecycle fixtures prove multi
 partial fills do not inflate order, closed-trade, or round-trip counts, and fee-aware outcomes
 reconcile to the accounting journal. Cost-equivalent fixtures compare the strategy against cash,
 peak-cost-basis-matched buy-and-hold, and periodic DCA in absolute dollars and net-P&L-over-maximum-
-drawdown terms. See the G2.1 through G2.7 files under `docs/evidence/`. This is not a G2 gate pass;
-G2.8-G2.10 and all live-money stages remain locked.
+drawdown terms. Exact performance fixtures prove turnover, exposure, drawdown duration, sample
+volatility, annualized Sharpe/Sortino, fee-aware trade statistics, explicit fee drag, and OLS alpha
+under a declared hourly contract. See the G2.1 through G2.8 files under `docs/evidence/`. This is
+not a G2 gate pass; G2.9-G2.10 and all live-money stages remain locked.
 
 ### Exit criteria
 

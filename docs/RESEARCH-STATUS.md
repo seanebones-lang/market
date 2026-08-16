@@ -42,5 +42,8 @@ separate gross P&L, fee, marked-equity, and net-liquidation accounts. G2.6 adds 
 execution, partial-fill, closed-trade, round-trip, outcome, and open-inventory lifecycle metrics.
 G2.7 adds cash, peak-cost-basis-matched buy-and-hold, and periodic-DCA comparators under the same
 execution and cost assumptions, plus absolute and net-P&L-over-maximum-drawdown comparisons.
+G2.8 adds exact descriptive performance statistics and aligned benchmark-alpha estimates with
+explicit hourly sampling, 8,760-period annualization, and undefined-metric statuses. These metrics
+do not make the short saved reports valid or establish statistical significance.
 The next valid result begins only after the complete G2 gate passes and uses the verified G1
 manifest. Profitability can never be guaranteed.

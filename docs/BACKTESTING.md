@@ -2,7 +2,7 @@
 
 ## Current gate status
 
-G2.1 through G2.7 are implemented. The engine no longer fills a decision at the close that produced
+G2.1 through G2.8 are implemented. The engine no longer fills a decision at the close that produced
 its signal, every run declares one of two deterministic next-open execution models,
 venue/API/routing cost profiles keep Robinhood v1 and v2 economics separate, and every transaction
 fee is explicitly defined per execution fill. End-of-data liquidation is now a visible, fully
@@ -71,8 +71,9 @@ Example:
 At a `$20` next open, this produces a `$19.980` synthetic bid, `$20.020` synthetic ask, and
 `$20.040020` simulated buy fill. Summary, event, and fill artifacts record the reference open,
 both synthetic touches, pre-slippage touch, fill price, and named assumptions. Artifact schema
-version 9 includes this contract together with the G2.3/G2.3a cost fields, G2.4 terminal
-liquidation fields, G2.5 accounting records, G2.6 lifecycle records, and G2.7 benchmarks.
+version 10 includes this contract together with the G2.3/G2.3a cost fields, G2.4 terminal
+liquidation fields, G2.5 accounting records, G2.6 lifecycle records, G2.7 benchmarks, and G2.8
+performance statistics.
 
 ## Venue cost profiles
 
@@ -131,7 +132,7 @@ The CLI rejects both removed ambiguous flags:
 --transaction-fee-bps-assumption
 ```
 
-Schema version 9 records `fee_calculation_basis=executed_notional_per_fill`, the configured
+Schema version 10 records `fee_calculation_basis=executed_notional_per_fill`, the configured
 `transaction_fee_bps_per_fill_assumption`, and the per-fill rate applied in summary, event, and fill
 artifacts.
 
@@ -212,7 +213,7 @@ net liquidation value
   = cash + inventory * estimated liquidation sell price - estimated liquidation fee
 ```
 
-Schema version 9 and the Python result model therefore use explicit names instead of the old
+Schema version 10 and the Python result model therefore use explicit names instead of the old
 ambiguous `pnl_usd`, `final_usd`, `fees_usd`, and `return_pct` names. They report final cash and
 inventory, remaining cost basis, average entry, realized and unrealized gross P&L, cumulative fees,
 marked equity, net liquidation value, both after-fee P&L views, and net-liquidation return. For a
@@ -250,7 +251,7 @@ two-execution entry and two-execution exit is two orders, four executions, four 
 executions, two closed trades, and one round trip. This prevents the old practice of using `fills`,
 `trades`, and `round trips` as synonyms.
 
-Schema version 9 carries `lifecycle.jsonl` with one lifecycle summary, one record per order, one per
+Schema version 10 carries `lifecycle.jsonl` with one lifecycle summary, one record per order, one per
 closed trade, and one per completed round trip. Summary and CLI output separately report order and
 execution states, partial fills, closed-trade outcomes, round trips, and open inventory/basis/entry
 fees.
@@ -289,12 +290,69 @@ net P&L over maximum drawdown = final net P&L after fees / maximum dollar NLV dr
 ```
 
 The ratio is undefined when maximum drawdown is zero; artifacts record that state instead of
-inventing zero or infinity. This is not called Sharpe or Calmar and is not annualized. Volatility,
-Sharpe, Sortino, drawdown duration, profit factor, expectancy, fee drag, and alpha remain G2.8.
+inventing zero or infinity. This is not called Sharpe or Calmar and is not annualized.
 
-Schema version 9 adds `benchmarks.jsonl`, `benchmark_fills.jsonl`, and
+Schema version 10 carries `benchmarks.jsonl`, `benchmark_fills.jsonl`, and
 `benchmark_equity.jsonl`. These preserve the benchmark contract, three results, three comparisons,
 every passive execution, and every bar-close net-liquidation point.
+
+## Performance-statistics contract
+
+G2.8 calculates strategy and benchmark statistics from every costed hourly bar-close NLV, even when
+the display-oriented strategy equity curve is downsampled. The first return compares the first
+close to starting cash; every later return compares adjacent closes:
+
+```text
+simple return[t] = NLV[t] / NLV[t-1] - 1
+```
+
+The sampling and annualization contract is explicit:
+
+```text
+bar frequency                = 1 hour
+crypto periods per year      = 365 * 24 = 8,760
+risk-free annual assumption  = 0%
+period volatility            = sample standard deviation (n - 1 denominator)
+annualized volatility        = period volatility * sqrt(8,760)
+annualized Sharpe            = mean hourly excess return / sample volatility * sqrt(8,760)
+downside deviation           = sqrt(mean(min(hourly return, 0)^2 over all periods))
+annualized Sortino           = mean hourly excess return / downside deviation * sqrt(8,760)
+```
+
+Volatility is a fractional return, not a percentage. Sharpe and Sortino are undefined for zero
+variance or zero downside deviation. Fewer than two returns cannot produce sample volatility or
+Sharpe. Artifacts carry explicit statuses for those cases instead of writing zero or infinity.
+
+The remaining metrics use these definitions:
+
+| Metric | Definition |
+|---|---|
+| Turnover | Gross absolute executed notional, including terminal liquidation, divided by arithmetic mean NLV across starting cash and all closes |
+| Exposure time | Percentage of hourly close observations with positive BTC inventory |
+| Drawdown duration | Consecutive hourly closes below the previous costed-NLV peak; both maximum and current duration are reported |
+| Profit factor | Sum of positive fee-aware closed-trade P&L divided by absolute sum of negative fee-aware closed-trade P&L |
+| Expectancy | Mean fee-aware net P&L per closed trade |
+| Explicit fee drag | Cumulative explicit transaction fees as starting-capital return percentage points; spread/slippage remain separate |
+
+Profit factor is undefined when there are no losing trades, and both profit factor and expectancy
+are undefined when there are no closed trades.
+
+For each benchmark, G2.8 aligns hourly strategy and benchmark returns and estimates:
+
+```text
+strategy return[t] = alpha_per_hour + beta * benchmark return[t] + residual[t]
+annualized alpha   = alpha_per_hour * 8,760
+```
+
+This is an arithmetic OLS intercept, reported as a fractional return. It is not a claim of
+statistical significance and currently has no confidence interval. Alpha is undefined when the
+benchmark has zero return variance, as cash normally does. The separate annualized active-return
+difference remains available in that case.
+
+Schema version 10 adds `performance.jsonl` with one contract, four portfolio-statistic rows, and
+three benchmark-alpha rows. `performance_observations.jsonl` preserves every unsampled strategy
+NLV/inventory observation used by the calculations; benchmark observations remain in
+`benchmark_equity.jsonl`.
 
 ## Anti-look-ahead proof
 
@@ -310,7 +368,6 @@ signal bar_close < decision_accepted < next bar_open < order_eligible < fill
 
 - Robinhood profile rates remain configured research assumptions, not account-observed costs. A
   future pre-trade adapter must read or verify the applicable account tier.
-- Research statistics, broader golden/failure fixtures, and fully reproducible run identity remain
-  open.
+- Broader golden/failure fixtures and fully reproducible run identity remain open.
 
 No result from this intermediate engine can support a profitability or live-money decision.

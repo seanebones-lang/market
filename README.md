@@ -56,8 +56,11 @@ journal and separates cost basis, gross realized/unrealized P&L, fees, marked eq
 liquidation value. G2.6 now distinguishes orders, executions, partial fills, closed trades,
 flat-to-flat round trips, fee-aware outcomes, and open inventory. G2.7 adds cost-equivalent cash,
 matched-notional buy-and-hold, and periodic-DCA benchmarks with absolute and drawdown-adjusted
-comparisons. The backtester remains exploratory until the rest of G2 implements research
-statistics, broader golden tests, and reproducible run identity.
+comparisons. G2.8 now reports turnover,
+bar-close exposure, drawdown duration, hourly/annualized volatility, Sharpe/Sortino, fee-aware
+profit factor and expectancy, explicit fee drag, and benchmark-relative OLS alpha under a declared
+hourly crypto annualization contract. Broader golden tests and reproducible run identity remain
+open, so the backtester remains exploratory.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.

@@ -485,6 +485,40 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
             f"{risk_adjusted_difference} "
             f"risk_adjusted_status={comparison.risk_adjusted_comparison_status.value}"
         )
+    console.print(
+        "performance_sampling=hourly_bar_close "
+        f"periods_per_year={result.performance.periods_per_year} "
+        "risk_free_rate_annual_pct_assumption="
+        f"{result.performance.risk_free_rate_annual_pct_assumption}"
+    )
+    for statistics in result.performance.portfolios:
+        console.print(
+            f"performance={statistics.portfolio} "
+            f"turnover_ratio={statistics.turnover_ratio} "
+            f"exposure_time_pct={statistics.exposure_time_pct} "
+            "max_drawdown_duration_bars="
+            f"{statistics.max_drawdown_duration_bars} "
+            f"annualized_volatility={statistics.annualized_volatility} "
+            f"annualized_sharpe={statistics.annualized_sharpe_ratio} "
+            f"sharpe_status={statistics.sharpe_status.value} "
+            f"annualized_sortino={statistics.annualized_sortino_ratio} "
+            f"sortino_status={statistics.sortino_status.value} "
+            f"profit_factor={statistics.profit_factor} "
+            f"profit_factor_status={statistics.profit_factor_status.value} "
+            "expectancy_per_closed_trade_usd="
+            f"{statistics.expectancy_per_closed_trade_usd} "
+            "explicit_fee_drag_return_percentage_points="
+            f"{statistics.explicit_fee_drag_return_percentage_points}"
+        )
+    for alpha in result.performance.benchmark_alphas:
+        console.print(
+            f"alpha_vs={alpha.benchmark.value} "
+            f"annualized_alpha={alpha.annualized_alpha} "
+            f"beta={alpha.beta} "
+            "annualized_active_return_difference="
+            f"{alpha.annualized_active_return_difference} "
+            f"alpha_status={alpha.status.value}"
+        )
     if result.fills:
         f0, f1 = result.fills[0], result.fills[-1]
         console.print(f"first_fill {f0.side.value} {f0.qty_btc}@{f0.price_usd} {f0.ts.isoformat()}")
@@ -508,6 +542,14 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     console.print(f"       {paths['benchmarks']} ({benchmark_rows} rows)")
     console.print(f"       {paths['benchmark_fills']} ({benchmark_fill_rows} rows)")
     console.print(f"       {paths['benchmark_equity']} ({benchmark_equity_rows} rows)")
+    performance_rows = (
+        1 + len(result.performance.portfolios) + len(result.performance.benchmark_alphas)
+    )
+    console.print(f"       {paths['performance']} ({performance_rows} rows)")
+    console.print(
+        f"       {paths['performance_observations']} "
+        f"({len(result.performance.strategy_observations)} rows)"
+    )
     console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")
     return 0
 

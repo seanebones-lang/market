@@ -36,12 +36,17 @@ from market.backtest.lifecycle import (
     OrderRequest,
     analyze_lifecycle,
 )
+from market.backtest.performance import (
+    PerformanceObservation,
+    ResearchPerformanceAnalysis,
+    analyze_research_performance,
+)
 from market.data.quality import require_clean_candles
 from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Side
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 
 class ExecutionModel(str, Enum):
@@ -272,6 +277,7 @@ class BacktestResult:
     accounting_journal: list[PortfolioJournalEntry] = field(default_factory=list)
     lifecycle: LifecycleAnalysis = field(default_factory=LifecycleAnalysis)
     benchmarks: BenchmarkAnalysis = field(default_factory=BenchmarkAnalysis)
+    performance: ResearchPerformanceAnalysis = field(default_factory=ResearchPerformanceAnalysis)
     final_inventory_btc: Decimal = Decimal("0")
     final_cash_usd: Decimal = Decimal("0")
     starting_cash_usd: Decimal = Decimal("0")
@@ -387,6 +393,7 @@ class BacktestResult:
             ),
             **self.lifecycle.summary(),
             **self.benchmarks.summary(),
+            **self.performance.summary(),
         }
 
 
@@ -435,6 +442,14 @@ def run_backtest(
             venue_cost=venue_cost,
             dca_interval_bars=benchmark_dca_interval_bars,
         )
+        performance = analyze_research_performance(
+            starting_cash_usd=starting_cash_usd,
+            strategy_observations=(),
+            strategy_fills=(),
+            strategy_closed_trade_net_pnls_usd=(),
+            strategy_cumulative_explicit_fees_usd=Decimal("0"),
+            benchmarks=benchmarks,
+        )
         return BacktestResult(
             starting_cash_usd=starting_cash_usd,
             final_cash_usd=starting_cash_usd,
@@ -448,6 +463,7 @@ def run_backtest(
                 accounting_journal=account.journal,
             ),
             benchmarks=benchmarks,
+            performance=performance,
             source=source,
             venue_cost_profile=venue_cost_assumptions.profile,
             venue=cost_metadata.venue,
@@ -501,6 +517,7 @@ def run_backtest(
     fills: list[Fill] = []
     events: list[BacktestEvent] = []
     equity_curve: list[EquityPoint] = []
+    performance_observations: list[PerformanceObservation] = []
     intents = allowed = blocked = 0
     peak = starting_cash_usd
     net_liquidation_peak = starting_cash_usd
@@ -703,6 +720,13 @@ def run_backtest(
         )
         drawdown = net_liquidation_peak - final_snapshot.net_liquidation_value_usd
         max_dd = max(max_dd, drawdown)
+        performance_observations.append(
+            PerformanceObservation(
+                ts=bar.close_time.isoformat(),
+                net_liquidation_value_usd=final_snapshot.net_liquidation_value_usd,
+                inventory_btc=account.inventory_btc,
+            )
+        )
         if record_equity_every > 0 and (
             (index + 1) % record_equity_every == 0 or index == len(candles) - 1
         ):
@@ -930,6 +954,16 @@ def run_backtest(
         venue_cost=venue_cost,
         dca_interval_bars=benchmark_dca_interval_bars,
     )
+    performance = analyze_research_performance(
+        starting_cash_usd=starting_cash_usd,
+        strategy_observations=tuple(performance_observations),
+        strategy_fills=tuple(fills),
+        strategy_closed_trade_net_pnls_usd=tuple(
+            trade.realized_net_pnl_after_fees_usd for trade in lifecycle.closed_trades
+        ),
+        strategy_cumulative_explicit_fees_usd=account.cumulative_fees_usd,
+        benchmarks=benchmarks,
+    )
 
     return BacktestResult(
         fills=fills,
@@ -938,6 +972,7 @@ def run_backtest(
         accounting_journal=list(account.journal),
         lifecycle=lifecycle,
         benchmarks=benchmarks,
+        performance=performance,
         final_inventory_btc=account.inventory_btc,
         final_cash_usd=account.cash_usd,
         starting_cash_usd=starting_cash_usd,
@@ -1002,6 +1037,8 @@ def write_backtest_report(
     benchmarks_path = out / "benchmarks.jsonl"
     benchmark_fills_path = out / "benchmark_fills.jsonl"
     benchmark_equity_path = out / "benchmark_equity.jsonl"
+    performance_path = out / "performance.jsonl"
+    performance_observations_path = out / "performance_observations.jsonl"
     equity_path = out / "equity.jsonl"
 
     summary_path.write_text(
@@ -1196,6 +1233,64 @@ def write_backtest_report(
                     )
                     + "\n"
                 )
+    with performance_path.open("w", encoding="utf-8") as f:
+        contract = result.performance.summary()
+        contract.pop("portfolio_statistics")
+        contract.pop("benchmark_alphas")
+        f.write(
+            json.dumps(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "type": "performance_contract",
+                    "run_id": run_id,
+                    **contract,
+                }
+            )
+            + "\n"
+        )
+        for portfolio in result.performance.portfolios:
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "portfolio_statistics",
+                        "run_id": run_id,
+                        **portfolio.summary(),
+                    }
+                )
+                + "\n"
+            )
+        for alpha in result.performance.benchmark_alphas:
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "benchmark_alpha",
+                        "run_id": run_id,
+                        **alpha.summary(),
+                    }
+                )
+                + "\n"
+            )
+    with performance_observations_path.open("w", encoding="utf-8") as f:
+        for sequence, observation in enumerate(
+            result.performance.strategy_observations,
+            start=1,
+        ):
+            f.write(
+                json.dumps(
+                    {
+                        "schema_version": SCHEMA_VERSION,
+                        "type": "strategy_performance_observation",
+                        "run_id": run_id,
+                        "sequence": sequence,
+                        "ts": observation.ts,
+                        "net_liquidation_value_usd": str(observation.net_liquidation_value_usd),
+                        "inventory_btc": str(observation.inventory_btc),
+                    }
+                )
+                + "\n"
+            )
     with equity_path.open("w", encoding="utf-8") as f:
         for pt in result.equity_curve:
             row = {
@@ -1235,5 +1330,7 @@ def write_backtest_report(
         "benchmarks": benchmarks_path,
         "benchmark_fills": benchmark_fills_path,
         "benchmark_equity": benchmark_equity_path,
+        "performance": performance_path,
+        "performance_observations": performance_observations_path,
         "equity": equity_path,
     }

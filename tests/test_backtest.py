@@ -102,6 +102,8 @@ def test_write_backtest_report(tmp_path: Path):
     assert paths["benchmarks"].exists()
     assert paths["benchmark_fills"].exists()
     assert paths["benchmark_equity"].exists()
+    assert paths["performance"].exists()
+    assert paths["performance_observations"].exists()
     assert paths["equity"].exists()
     text = paths["summary"].read_text()
     summary = json.loads(text)
@@ -115,7 +117,7 @@ def test_write_backtest_report(tmp_path: Path):
     assert '"fee_calculation_basis": "executed_notional_per_fill"' in text
     assert '"transaction_fee_bps_per_fill_assumption": "5"' in text
     assert '"transaction_fee_bps_per_fill_applied": "5"' in text
-    assert '"schema_version": 9' in text
+    assert '"schema_version": 10' in text
     assert '"terminal_liquidation_model": "last_bar_close"' in text
     assert '"terminal_liquidation_fills": 1' in text
     assert summary["accounting_method"] == ("weighted_average_gross_cost_basis_fees_separate")
@@ -138,6 +140,9 @@ def test_write_backtest_report(tmp_path: Path):
     assert summary["benchmark_dca_interval_bars"] == 168
     assert len(summary["benchmarks"]) == 3
     assert len(summary["benchmark_comparisons"]) == 3
+    assert summary["performance_periods_per_year"] == 8760
+    assert len(summary["portfolio_statistics"]) == 4
+    assert len(summary["benchmark_alphas"]) == 3
     assert "pnl_usd" not in summary
     assert "final_usd" not in summary
     assert "fees_usd" not in summary
@@ -187,6 +192,18 @@ def test_write_backtest_report(tmp_path: Path):
     assert all(row["type"] == "benchmark_equity" for row in benchmark_equity_rows)
     assert all("liquidation_sell_price_usd" in row for row in benchmark_equity_rows)
     assert all("estimated_liquidation_fee_usd" in row for row in benchmark_equity_rows)
+    performance_rows = [json.loads(line) for line in paths["performance"].read_text().splitlines()]
+    assert performance_rows[0]["type"] == "performance_contract"
+    assert sum(row["type"] == "portfolio_statistics" for row in performance_rows) == 4
+    assert sum(row["type"] == "benchmark_alpha" for row in performance_rows) == 3
+    assert performance_rows[0]["performance_periods_per_year"] == 8760
+    performance_observation_rows = [
+        json.loads(line) for line in paths["performance_observations"].read_text().splitlines()
+    ]
+    assert len(performance_observation_rows) == res.bars
+    assert all(
+        row["type"] == "strategy_performance_observation" for row in performance_observation_rows
+    )
     equity_rows = [json.loads(line) for line in paths["equity"].read_text().splitlines()]
     assert equity_rows[-1]["stage"] == "post_terminal_liquidation"
     assert equity_rows[-1]["cash_usd"] == str(res.final_cash_usd)
