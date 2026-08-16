@@ -354,6 +354,7 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         console.print(f"first_fill {f0.side.value} {f0.qty_btc}@{f0.price_usd} {f0.ts.isoformat()}")
         console.print(f"last_fill  {f1.side.value} {f1.qty_btc}@{f1.price_usd} {f1.ts.isoformat()}")
     console.print(f"[green]wrote[/green] {paths['summary']}")
+    console.print(f"       {paths['events']} ({len(result.events)} rows)")
     console.print(f"       {paths['fills']} ({len(result.fills)} rows)")
     console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")
     return 0

@@ -43,7 +43,7 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Complete G2 next-bar execution, cost models, and reconcilable accounting.
+1. Continue G2.2 with spread/slippage execution models, then cost and accounting controls.
 2. Build G3 walk-forward research on the verified G1 dataset segments.
 3. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
 4. Create a Robinhood credential with read actions only after the G5 read-only adapter gate begins.

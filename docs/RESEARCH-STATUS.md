@@ -8,7 +8,8 @@ order permissions, or live capital.
 
 ## Why the reports are non-promotable
 
-- Signals observe a candle close and fill at that same close.
+- The saved reports were produced when signals observed a candle close and filled at that same
+  close. G2.1 removes this defect for new runs only; it does not rehabilitate saved reports.
 - Spread and slippage are absent from the backtest engine.
 - Terminal inventory is liquidated without a recorded fill or exit cost.
 - Marked final equity is labeled realized P&L.
@@ -27,5 +28,6 @@ order permissions, or live capital.
 
 G1 now provides a versioned five-year input dataset with immutable raw data, normalized candles,
 checksums, declared gaps, and strategy-safe segments. It does not rehabilitate these saved runs or
-the current engine. The next valid result begins only after G2 backtest correctness passes and uses
-the verified G1 manifest. Profitability can never be guaranteed.
+the partially rebuilt engine. G2.1 now enforces next-bar-open eligibility, but the next valid result
+begins only after the complete G2 gate passes and uses the verified G1 manifest. Profitability can
+never be guaranteed.

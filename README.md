@@ -47,8 +47,8 @@ Candles are real Coinbase Exchange public BTC-USD bars (not synthetic).
 
 The versioned five-year research artifact is immutable and checksum-verified. It contains three
 declared Coinbase history gaps and is admitted only as four independently warmed segments. See
-`docs/DATA.md`. The existing backtester is still exploratory until G2 fixes execution timing and
-accounting.
+`docs/DATA.md`. G2.1 now enforces next-bar-open timing, but the backtester remains exploratory until
+the rest of G2 fixes execution costs, terminal liquidation, and accounting.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.
@@ -58,6 +58,7 @@ enable order submission.
 - `docs/THOUGHTS.md` — why this is harder than AK47, constraints, recommendations
 - `docs/ARCHITECTURE.md` — system design
 - `docs/DATA.md` — candle schema, quality gate, immutable datasets, and gap policy
+- `docs/BACKTESTING.md` — event timing, anti-look-ahead proof, and remaining engine blockers
 - `docs/RESEARCH-STATUS.md` — why current results cannot support promotion
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan

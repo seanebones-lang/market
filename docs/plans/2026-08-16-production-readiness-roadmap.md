@@ -213,7 +213,7 @@ reconcilable.
 
 ### Tasks
 
-- [ ] **G2.1** Replace same-close fills with an explicit event sequence: bar `t` closes, strategy
+- [x] **G2.1** Replace same-close fills with an explicit event sequence: bar `t` closes, strategy
   decides after close, order becomes eligible at bar `t+1`, and fills use a declared execution
   model.
 - [ ] **G2.2** Support execution models for next-open market fills and bid/ask plus configurable
@@ -236,6 +236,10 @@ reconcilable.
   tests, partial-fill tests, insufficient-cash tests, and terminal-fee tests.
 - [ ] **G2.10** Make run artifacts reproducible: code revision, data checksum, config, random seed,
   engine version, costs, trades, equity curve, and metrics.
+
+**Increment record (2026-08-16):** `G2.1: PASS`. The future-jump fixture proves next-open fills and
+end-of-data decisions expire unfilled. See `docs/evidence/G2.1-2026-08-16.md`. This is not a G2 gate
+pass; G2.2-G2.10 and all live-money stages remain locked.
 
 ### Exit criteria
 

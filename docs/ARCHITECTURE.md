@@ -80,6 +80,19 @@ Paper quote polls update the execution mark only; they never create candles. Str
 UTC-aligned, close-confirmed, ordered, and contiguous. Content-addressed research artifacts live
 under `data/research/`. See `docs/DATA.md` and ADR 0002.
 
+## Backtest event timing
+
+```text
+bar t close -> strategy/risk decision -> pending order
+                                           |
+                                           v
+bar t+1 open -> order eligible -> next-open fill
+```
+
+The ordered event journal makes this sequence auditable and prevents the signal bar's close from
+also being its fill. See `docs/BACKTESTING.md`. Execution costs and accounting remain later G2
+increments.
+
 ## BrokerPort (interface)
 
 ```python
