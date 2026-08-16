@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -5,6 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from market.backtest.costs import VenueCostProfile
 from market.backtest.engine import (
     BacktestEventType,
     ExecutionAssumptions,
@@ -90,8 +92,14 @@ def test_write_backtest_report(tmp_path: Path):
     assert '"execution_model": "next_bar_open"' in text
     assert '"quoted_spread_bps_assumption": "0"' in text
     assert '"adverse_slippage_bps_assumption": "0"' in text
+    assert '"venue_cost_profile": "legacy_unclassified"' in text
+    assert '"cost_input_classification": "legacy_unclassified"' in text
+    assert '"market_data_source": "test"' in text
     event_lines = paths["events"].read_text().splitlines()
     assert len(event_lines) == len(res.events)
+    fill_row = json.loads(paths["fills"].read_text().splitlines()[0])
+    assert fill_row["venue"] == "unclassified"
+    assert fill_row["market_data_source"] == "test"
 
 
 def test_next_open_execution_price_has_no_synthetic_cost():
@@ -246,6 +254,59 @@ def test_future_jump_applies_declared_spread_and_slippage_after_next_open():
     )
     assert fill_event.details["reference_open_usd"] == "20"
     assert fill_event.details["fill_price_usd"] == "20.040020"
+
+
+def test_robinhood_v1_profile_embeds_cost_in_spread_without_fee():
+    candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
+    result = run_backtest(
+        candles,
+        starting_usd=Decimal("1000"),
+        qty_btc=Decimal("1"),
+        strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
+        source="fixture:future-jump",
+        execution_model=ExecutionModel.NEXT_BAR_OPEN_BID_ASK,
+        quoted_spread_bps_assumption=Decimal("192"),
+        venue_cost_profile=VenueCostProfile.ROBINHOOD_CRYPTO_API_V1_MARKET_MAKER,
+    )
+
+    fill = result.fills[0]
+    assert fill.price_usd == Decimal("20.1920")
+    assert fill.fee_usd == 0
+    assert fill.raw["venue_cost_profile"] == ("robinhood_crypto_api_v1_market_maker")
+    assert fill.raw["transaction_fee_treatment"] == ("spread_inclusive_no_separate_transaction_fee")
+    assert fill.raw["cost_input_classification"] == "configured_assumption"
+    assert result.summary()["routing"] == "market_maker"
+    assert result.summary()["api_version"] == "v1"
+
+
+def test_robinhood_v2_profile_charges_taker_fee_assumption_on_fill_notional():
+    candles = load_candles_csv(FUTURE_JUMP_FIXTURE)
+    result = run_backtest(
+        candles,
+        starting_usd=Decimal("1000"),
+        qty_btc=Decimal("1"),
+        strategy_cfg=SlowTrendConfig(fast_ema=2, slow_ema=3, order_qty_btc=Decimal("1")),
+        source="fixture:future-jump",
+        execution_model=ExecutionModel.NEXT_BAR_OPEN_BID_ASK,
+        quoted_spread_bps_assumption=Decimal("20"),
+        adverse_slippage_bps_assumption=Decimal("10"),
+        venue_cost_profile=VenueCostProfile.ROBINHOOD_CRYPTO_API_V2_EXCHANGE_TAKER,
+        transaction_fee_bps_assumption=Decimal("95"),
+    )
+
+    fill = result.fills[0]
+    assert fill.price_usd == Decimal("20.040020")
+    assert fill.fee_usd == Decimal("0.190380190")
+    assert fill.raw["venue_cost_profile"] == ("robinhood_crypto_api_v2_exchange_taker")
+    assert fill.raw["transaction_fee_treatment"] == (
+        "exchange_taker_fee_on_executed_notional_assumption"
+    )
+    assert fill.raw["transaction_fee_bps_assumption"] == "95"
+    assert fill.raw["transaction_fee_bps_applied"] == "95"
+    assert result.summary()["routing"] == "exchange"
+    assert result.summary()["api_version"] == "v2"
+    assert result.summary()["transaction_fee_bps_assumption"] == "95"
+    assert "observed" not in str(result.summary()).lower()
 
 
 def test_signal_on_final_bar_expires_without_fill():

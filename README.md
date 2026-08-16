@@ -47,9 +47,10 @@ Candles are real Coinbase Exchange public BTC-USD bars (not synthetic).
 
 The versioned five-year research artifact is immutable and checksum-verified. It contains three
 declared Coinbase history gaps and is admitted only as four independently warmed segments. See
-`docs/DATA.md`. G2.1 now enforces next-bar-open timing, and G2.2 adds declared synthetic bid/ask and
-adverse-slippage assumptions. The backtester remains exploratory until the rest of G2 calibrates
-venue costs and fixes fee semantics, terminal liquidation, and accounting.
+`docs/DATA.md`. G2.1 now enforces next-bar-open timing, G2.2 adds declared synthetic bid/ask and
+adverse-slippage assumptions, and G2.3 separates Robinhood v1 market-maker spread treatment from v2
+exchange-taker fee assumptions. The backtester remains exploratory until the rest of G2 fixes
+legacy fee semantics, terminal liquidation, and accounting.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.

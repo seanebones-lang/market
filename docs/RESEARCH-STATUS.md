@@ -11,7 +11,8 @@ order permissions, or live capital.
 - The saved reports were produced when signals observed a candle close and filled at that same
   close. G2.1 removes this defect for new runs only; it does not rehabilitate saved reports.
 - The saved reports omit spread and slippage. G2.2 adds explicitly synthetic assumptions for new
-  runs, but those assumptions are not yet calibrated to venue/routing evidence.
+  runs, and G2.3 separates Robinhood v1 market-maker spread treatment from v2 exchange-taker fees.
+  Configured rates are still assumptions, not account-observed costs.
 - Terminal inventory is liquidated without a recorded fill or exit cost.
 - Marked final equity is labeled realized P&L.
 - The best run used 1,500 bars, but its exact input dataset is no longer retained.
@@ -29,6 +30,7 @@ order permissions, or live capital.
 
 G1 now provides a versioned five-year input dataset with immutable raw data, normalized candles,
 checksums, declared gaps, and strategy-safe segments. It does not rehabilitate these saved runs or
-the partially rebuilt engine. G2.1 now enforces next-bar-open eligibility, and G2.2 supplies
-declared bid/ask and adverse-slippage models. The next valid result begins only after the complete
-G2 gate passes and uses the verified G1 manifest. Profitability can never be guaranteed.
+the partially rebuilt engine. G2.1 now enforces next-bar-open eligibility, G2.2 supplies declared
+bid/ask and adverse-slippage models, and G2.3 supplies route-specific Robinhood cost contracts. The
+next valid result begins only after the complete G2 gate passes and uses the verified G1 manifest.
+Profitability can never be guaranteed.

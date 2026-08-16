@@ -11,13 +11,20 @@ from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from market.backtest.costs import (
+    BPS_DIVISOR,
+    CostInputClassification,
+    TransactionFeeTreatment,
+    VenueCostAssumptions,
+    VenueCostProfile,
+    resolve_venue_cost,
+)
 from market.data.quality import require_clean_candles
 from market.domain.models import Balances, Candle, D, Fill, Intent, Position, Side
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-SCHEMA_VERSION = 3
-BPS_DIVISOR = Decimal("10000")
+SCHEMA_VERSION = 4
 
 
 class ExecutionModel(str, Enum):
@@ -176,6 +183,13 @@ class BacktestResult:
     slow_ema: int = 26
     qty_btc: Decimal = Decimal("0.001")
     fee_bps: Decimal = Decimal("5")
+    venue_cost_profile: VenueCostProfile = VenueCostProfile.LEGACY_UNCLASSIFIED
+    venue: str = "unclassified"
+    routing: str = "unclassified"
+    api_version: str = "unclassified"
+    cost_input_classification: CostInputClassification = CostInputClassification.LEGACY_UNCLASSIFIED
+    transaction_fee_treatment: TransactionFeeTreatment = TransactionFeeTreatment.LEGACY_UNCLASSIFIED
+    transaction_fee_bps_assumption: Decimal = Decimal("0")
     execution_model: ExecutionModel = ExecutionModel.NEXT_BAR_OPEN
     quoted_spread_bps_assumption: Decimal = Decimal("0")
     adverse_slippage_bps_assumption: Decimal = Decimal("0")
@@ -199,11 +213,20 @@ class BacktestResult:
         return {
             "schema_version": SCHEMA_VERSION,
             "source": self.source,
+            "market_data_source": self.source,
             "strategy": self.strategy,
             "fast_ema": self.fast_ema,
             "slow_ema": self.slow_ema,
             "qty_btc": str(self.qty_btc),
             "fee_bps": str(self.fee_bps),
+            "venue_cost_profile": self.venue_cost_profile.value,
+            "venue": self.venue,
+            "routing": self.routing,
+            "api_version": self.api_version,
+            "cost_input_classification": self.cost_input_classification.value,
+            "transaction_fee_treatment": self.transaction_fee_treatment.value,
+            "transaction_fee_bps_assumption": str(self.transaction_fee_bps_assumption),
+            "transaction_fee_bps_applied": str(self.fee_bps),
             "execution_model": self.execution_model.value,
             "quoted_spread_bps_assumption": str(self.quoted_spread_bps_assumption),
             "adverse_slippage_bps_assumption": str(self.adverse_slippage_bps_assumption),
@@ -231,7 +254,7 @@ def run_backtest(
     candles: list[Candle],
     starting_usd: Decimal = Decimal("1000"),
     qty_btc: Decimal = Decimal("0.001"),
-    fee_bps: Decimal = Decimal("5"),
+    fee_bps: Decimal | None = None,
     strategy_cfg: SlowTrendConfig | None = None,
     risk_cfg: RiskConfig | None = None,
     source: str = "",
@@ -239,6 +262,8 @@ def run_backtest(
     execution_model: ExecutionModel = ExecutionModel.NEXT_BAR_OPEN,
     quoted_spread_bps_assumption: Decimal = Decimal("0"),
     adverse_slippage_bps_assumption: Decimal = Decimal("0"),
+    venue_cost_profile: VenueCostProfile = VenueCostProfile.LEGACY_UNCLASSIFIED,
+    transaction_fee_bps_assumption: Decimal = Decimal("0"),
 ) -> BacktestResult:
     """Long-only event replay with decisions after close and fills at the next bar open."""
     execution_assumptions = ExecutionAssumptions(
@@ -247,11 +272,32 @@ def run_backtest(
         adverse_slippage_bps_assumption=adverse_slippage_bps_assumption,
     )
     execution_model = execution_assumptions.model
+    venue_cost_assumptions = VenueCostAssumptions(
+        profile=venue_cost_profile,
+        transaction_fee_bps_assumption=transaction_fee_bps_assumption,
+    )
+    venue_cost = resolve_venue_cost(
+        venue_cost_assumptions,
+        execution_model=execution_model.value,
+        quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
+        legacy_fee_bps=fee_bps,
+    )
+    fee_bps_applied = venue_cost.transaction_fee_bps_applied
+    cost_details = venue_cost.artifact_details()
+    cost_metadata = venue_cost_assumptions.metadata
     if not candles:
         return BacktestResult(
             starting_usd=starting_usd,
             final_usd=starting_usd,
             source=source,
+            fee_bps=fee_bps_applied,
+            venue_cost_profile=venue_cost_assumptions.profile,
+            venue=cost_metadata.venue,
+            routing=cost_metadata.routing,
+            api_version=cost_metadata.api_version,
+            cost_input_classification=cost_metadata.input_classification,
+            transaction_fee_treatment=cost_metadata.transaction_fee_treatment,
+            transaction_fee_bps_assumption=(venue_cost_assumptions.transaction_fee_bps_assumption),
             execution_model=execution_model,
             quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
             adverse_slippage_bps_assumption=(execution_assumptions.adverse_slippage_bps_assumption),
@@ -346,12 +392,13 @@ def run_backtest(
                     "execution_model": execution_model.value,
                     "signal_bar_ts": pending.signal_bar_ts,
                     "decision_ts": pending.decision_ts,
+                    **cost_details,
                     **price_details,
                 },
             )
             quantity = pending.intent.qty_btc
             price = execution_price.fill_price_usd
-            fee = (quantity * price) * (fee_bps / BPS_DIVISOR)
+            fee = (quantity * price) * (fee_bps_applied / BPS_DIVISOR)
             traded = False
             reject_reason: str | None = None
             if side == Side.BUY:
@@ -393,6 +440,7 @@ def run_backtest(
                         "eligible_bar_ts": pending.eligible_bar_ts,
                         "fill_bar_ts": bar_ts,
                         "fill_bar_open": str(bar.open),
+                        **cost_details,
                         **price_details,
                         "reason": pending.intent.reason,
                         "signal_snapshot": pending.intent.signal_snapshot,
@@ -411,6 +459,7 @@ def run_backtest(
                         "fee_usd": str(fee),
                         "execution_model": execution_model.value,
                         "signal_bar_ts": pending.signal_bar_ts,
+                        **cost_details,
                         **price_details,
                     },
                 )
@@ -425,6 +474,7 @@ def run_backtest(
                     details={
                         "reason": reject_reason,
                         "execution_model": execution_model.value,
+                        **cost_details,
                         **price_details,
                     },
                 )
@@ -503,6 +553,7 @@ def run_backtest(
                         "qty_btc": str(decision.intent.qty_btc),
                         "eligible_bar_ts": eligible_bar_ts,
                         "execution_model": execution_model.value,
+                        "venue_cost_profile": venue_cost_assumptions.profile.value,
                     },
                 )
 
@@ -548,7 +599,14 @@ def run_backtest(
         fast_ema=strategy_cfg.fast_ema,
         slow_ema=strategy_cfg.slow_ema,
         qty_btc=strategy_cfg.order_qty_btc,
-        fee_bps=fee_bps,
+        fee_bps=fee_bps_applied,
+        venue_cost_profile=venue_cost_assumptions.profile,
+        venue=cost_metadata.venue,
+        routing=cost_metadata.routing,
+        api_version=cost_metadata.api_version,
+        cost_input_classification=cost_metadata.input_classification,
+        transaction_fee_treatment=cost_metadata.transaction_fee_treatment,
+        transaction_fee_bps_assumption=(venue_cost_assumptions.transaction_fee_bps_assumption),
         execution_model=execution_model,
         quoted_spread_bps_assumption=(execution_assumptions.quoted_spread_bps_assumption),
         adverse_slippage_bps_assumption=(execution_assumptions.adverse_slippage_bps_assumption),
@@ -593,7 +651,8 @@ def write_backtest_report(
                 "type": "fill",
                 "run_id": run_id,
                 "mode": "backtest",
-                "venue": result.source or "historical",
+                "venue": result.venue,
+                "market_data_source": result.source,
                 "fill": fill.model_dump(mode="json"),
             }
             f.write(json.dumps(row, default=str) + "\n")

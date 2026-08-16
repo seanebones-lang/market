@@ -218,7 +218,7 @@ reconcilable.
   model.
 - [x] **G2.2** Support execution models for next-open market fills and bid/ask plus configurable
   adverse slippage. Record the selected model in every run.
-- [ ] **G2.3** Model venue/routing-specific costs. Keep Robinhood v1 spread-inclusive and v2
+- [x] **G2.3** Model venue/routing-specific costs. Keep Robinhood v1 spread-inclusive and v2
   exchange-fee assumptions distinct. Never label a cost assumption as an observed cost.
 - [ ] **G2.3a** Define every fee input as per-side or round-trip. Remove the CLI's current ambiguity,
   where `fee_bps` is described as round-trip but charged on every fill.
@@ -237,11 +237,13 @@ reconcilable.
 - [ ] **G2.10** Make run artifacts reproducible: code revision, data checksum, config, random seed,
   engine version, costs, trades, equity curve, and metrics.
 
-**Increment record (2026-08-16):** `G2.1: PASS`; `G2.2: PASS`. The future-jump fixture proves
-next-open fills and end-of-data decisions expire unfilled. Directional tests prove buys cross the
-synthetic ask and slip upward while sells cross the synthetic bid and slip downward. See
-`docs/evidence/G2.1-2026-08-16.md` and `docs/evidence/G2.2-2026-08-16.md`. This is not a G2 gate pass;
-G2.3-G2.10 and all live-money stages remain locked.
+**Increment record (2026-08-16):** `G2.1: PASS`; `G2.2: PASS`; `G2.3: PASS`. The future-jump fixture
+proves next-open fills and end-of-data decisions expire unfilled. Directional tests prove buys
+cross the synthetic ask and slip upward while sells cross the synthetic bid and slip downward.
+Venue-profile tests keep Robinhood v1 spread-only treatment separate from v2 exchange-taker fee
+assumptions. See `docs/evidence/G2.1-2026-08-16.md`, `docs/evidence/G2.2-2026-08-16.md`, and
+`docs/evidence/G2.3-2026-08-16.md`. This is not a G2 gate pass; G2.3a-G2.10 and all live-money stages
+remain locked.
 
 ### Exit criteria
 

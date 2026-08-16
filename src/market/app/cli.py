@@ -97,7 +97,28 @@ def main(argv: list[str] | None = None) -> int:
     bt_p.add_argument("--cash", default="1000")
     bt_p.add_argument("--fast", type=int, default=12)
     bt_p.add_argument("--slow", type=int, default=26)
-    bt_p.add_argument("--fee-bps", default="5", help="Round-trip fee model in bps per fill")
+    bt_p.add_argument(
+        "--fee-bps",
+        default=None,
+        help=(
+            "Legacy unclassified fee input (defaults to 5); incompatible with Robinhood profiles"
+        ),
+    )
+    bt_p.add_argument(
+        "--venue-cost-profile",
+        choices=[
+            "legacy_unclassified",
+            "robinhood_crypto_api_v1_market_maker",
+            "robinhood_crypto_api_v2_exchange_taker",
+        ],
+        default="legacy_unclassified",
+        help="Declared venue/API/routing cost contract",
+    )
+    bt_p.add_argument(
+        "--transaction-fee-bps-assumption",
+        default="0",
+        help="Configured fee assumption on executed notional; never treated as observed",
+    )
     bt_p.add_argument(
         "--execution-model",
         choices=["next_bar_open", "next_bar_open_bid_ask"],
@@ -293,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
 def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     from datetime import datetime
 
+    from market.backtest.costs import VenueCostProfile
     from market.backtest.engine import ExecutionModel, run_backtest, write_backtest_report
     from market.data.candles import fetch_coinbase_candles, load_candles_csv, save_candles_csv
     from market.strategy.slow_trend import SlowTrendConfig
@@ -339,12 +361,14 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         candles,
         starting_usd=Decimal(args.cash),
         qty_btc=Decimal(args.qty),
-        fee_bps=Decimal(args.fee_bps),
+        fee_bps=Decimal(args.fee_bps) if args.fee_bps is not None else None,
         strategy_cfg=cfg,
         source=source,
         execution_model=ExecutionModel(args.execution_model),
         quoted_spread_bps_assumption=Decimal(args.quoted_spread_bps_assumption),
         adverse_slippage_bps_assumption=Decimal(args.adverse_slippage_bps_assumption),
+        venue_cost_profile=VenueCostProfile(args.venue_cost_profile),
+        transaction_fee_bps_assumption=Decimal(args.transaction_fee_bps_assumption),
     )
 
     run_id = args.run_id or datetime.now(UTC).strftime("bt_%Y%m%dT%H%M%SZ")
@@ -359,6 +383,11 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         f"execution_model={result.execution_model.value} "
         f"quoted_spread_bps_assumption={result.quoted_spread_bps_assumption} "
         f"adverse_slippage_bps_assumption={result.adverse_slippage_bps_assumption}"
+    )
+    console.print(
+        f"venue_cost_profile={result.venue_cost_profile.value} "
+        f"transaction_fee_bps_assumption={result.transaction_fee_bps_assumption} "
+        f"transaction_fee_bps_applied={result.fee_bps}"
     )
     console.print(
         f"bars={result.bars} range={result.first_ts} → {result.last_ts} "
