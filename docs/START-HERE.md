@@ -2,14 +2,15 @@
 
 ## What this is
 
-A planned autotrader for **actual BTC spot** with Robinhood as the first intended broker adapter.
+A research and execution platform for **BTC spot**, with the official Robinhood Crypto Trading API
+as the first intended broker adapter.
 
 ## What this is not (yet)
 
 - Not live
-- Not paper-trading wired
+- Not approved for live money
+- Not evidence of a profitable strategy
 - Not a Kalshi/prediction-market bot (that is AK47)
-- Not a promise Robinhood will stay automatable
 
 ## Truth order (when live)
 
@@ -25,7 +26,7 @@ A planned autotrader for **actual BTC spot** with Robinhood as the first intende
 | `sim` | simulated fills | fake |
 | `paper` | no broker submit | fake or shadow |
 | `live-dry` | build orders, log, do not submit | none |
-| `live` | real BTC buy/sell | real — **hard-refused until RH transport + MARKET_RH_LIVE=1** |
+| `live` | disabled by CLI and build lock | none |
 
 ## Commands now
 
@@ -36,11 +37,12 @@ A planned autotrader for **actual BTC spot** with Robinhood as the first intende
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ```
 
-Nothing graduates to `live` without passing the risk checklist in `docs/RISK.md`.
+Nothing graduates to `live` without passing G0-G8 in
+`docs/plans/2026-08-16-production-readiness-roadmap.md`.
 
 ## Immediate next human decisions
 
-1. Confirm Robinhood-only vs broker-adapter with Coinbase Advanced as safer primary.
-2. Bankroll cap for v1 (recommend tiny: e.g. $50–$200).
-3. Strategy class for v1 (trend / mean-revert / schedule DCA+exit — pick one).
-4. Accept ToS / ban risk if using unofficial RH client.
+1. Complete G0 and record a clean offline baseline.
+2. Rebuild research timing, accounting, data, and walk-forward validation.
+3. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
+4. Create a Robinhood credential with read actions only after the read-only adapter gate begins.

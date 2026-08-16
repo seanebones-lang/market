@@ -7,15 +7,13 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import httpx
 
 from market.domain.models import Candle, D, Quote
-
 
 COINBASE_CANDLES = "https://api.exchange.coinbase.com/products/BTC-USD/candles"
 COINBASE_TICKER = "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
@@ -67,7 +65,7 @@ def fetch_live_mark() -> tuple[Quote, dict]:
 
 def _parse_coinbase_row(row: list[Any]) -> Candle:
     # [ time, low, high, open, close, volume ]
-    ts = datetime.fromtimestamp(int(row[0]), tz=timezone.utc)
+    ts = datetime.fromtimestamp(int(row[0]), tz=UTC)
     return Candle(
         ts=ts,
         low=D(str(row[1])),
@@ -88,19 +86,21 @@ def fetch_coinbase_candles(
     own = client is None
     client = client or httpx.Client(timeout=30.0)
     try:
-        end = end or datetime.now(timezone.utc)
+        end = end or datetime.now(UTC)
         out: list[Candle] = []
         cursor_end = end
         # Coinbase returns max 300 candles per request
         span = timedelta(seconds=granularity * 300)
         for _ in range(limit_batches):
             start = cursor_end - span
-            params = {
+            params: dict[str, str | int] = {
                 "granularity": granularity,
                 "start": start.isoformat().replace("+00:00", "Z"),
                 "end": cursor_end.isoformat().replace("+00:00", "Z"),
             }
-            r = client.get(COINBASE_CANDLES, params=params, headers={"User-Agent": "market-bot/0.1"})
+            r = client.get(
+                COINBASE_CANDLES, params=params, headers={"User-Agent": "market-bot/0.1"}
+            )
             r.raise_for_status()
             rows = r.json()
             if not rows:
@@ -144,7 +144,7 @@ def load_candles_csv(path: str | Path) -> list[Candle]:
         for row in r:
             ts = datetime.fromisoformat(row["ts"])
             if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.replace(tzinfo=UTC)
             out.append(
                 Candle(
                     ts=ts,

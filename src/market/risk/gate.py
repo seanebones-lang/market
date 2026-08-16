@@ -5,18 +5,46 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
-from market.domain.models import Balances, Intent, Position, RiskDecision, Side, utcnow
+from pydantic import BaseModel, ConfigDict, StrictBool, field_validator
+
+from market.domain.models import Balances, D, Intent, Position, RiskDecision, Side, utcnow
 
 
-@dataclass
-class RiskConfig:
+class RiskConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     max_position_btc: Decimal = Decimal("0.002")
     max_notional_usd: Decimal = Decimal("150")
     max_daily_loss_usd: Decimal = Decimal("25")
     max_orders_per_hour: int = 4
     min_seconds_between_orders: int = 300
-    allow_entries: bool = True
+    allow_entries: StrictBool = True
+
+    @field_validator("max_position_btc", "max_notional_usd", "max_daily_loss_usd", mode="before")
+    @classmethod
+    def _positive_decimal(cls, value: Any) -> Decimal:
+        if isinstance(value, float):
+            raise TypeError("float not allowed for risk money/quantity fields")
+        out = D(value)
+        if out <= 0:
+            raise ValueError("risk money/quantity fields must be > 0")
+        return out
+
+    @field_validator("max_orders_per_hour")
+    @classmethod
+    def _positive_order_limit(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("max_orders_per_hour must be > 0")
+        return value
+
+    @field_validator("min_seconds_between_orders")
+    @classmethod
+    def _nonnegative_spacing(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("min_seconds_between_orders must be >= 0")
+        return value
 
 
 @dataclass
@@ -127,7 +155,5 @@ class RiskGate:
         if intent.side == Side.BUY and position.qty_btc >= 0:
             # long-only book: buy is entry/add
             return True
-        if intent.side == Side.SELL and position.qty_btc <= 0:
-            # shorting would be entry; we don't support shorts in v1
-            return True
-        return False
+        # A sell while flat would open a short, which v1 does not support.
+        return intent.side == Side.SELL and position.qty_btc <= 0

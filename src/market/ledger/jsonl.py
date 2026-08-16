@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import os
 import threading
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 
 class JsonlLedger:
@@ -21,11 +22,10 @@ class JsonlLedger:
 
     def append(self, record: dict[str, Any]) -> None:
         line = json.dumps(record, default=str, separators=(",", ":"))
-        with self._lock:
-            with self.path.open("a", encoding="utf-8") as f:
-                f.write(line + "\n")
-                f.flush()
-                os.fsync(f.fileno())
+        with self._lock, self.path.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+            f.flush()
+            os.fsync(f.fileno())
 
     def read_all(self) -> list[dict[str, Any]]:
         with self._lock:

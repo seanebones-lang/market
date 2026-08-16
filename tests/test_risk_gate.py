@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from market.domain.models import Balances, Intent, Position, Side
@@ -49,7 +49,7 @@ def test_freeze_allows_sell_exit():
 
 def test_min_spacing():
     g = RiskGate(RiskConfig(min_seconds_between_orders=300))
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=UTC)
     st = RiskState(last_order_ts=now)
     d = g.evaluate(
         _intent(),
@@ -65,7 +65,7 @@ def test_min_spacing():
 
 def test_max_orders_per_hour():
     g = RiskGate(RiskConfig(max_orders_per_hour=2))
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=UTC)
     st = RiskState(order_timestamps=[now, now + timedelta(minutes=1)])
     d = g.evaluate(
         _intent(),

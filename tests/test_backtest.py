@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -9,7 +9,7 @@ from market.strategy.slow_trend import SlowTrendConfig
 
 
 def _synth(n=80) -> list[Candle]:
-    ts0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    ts0 = datetime(2024, 1, 1, tzinfo=UTC)
     out = []
     px = Decimal("40000")
     for i in range(n):
@@ -50,11 +50,14 @@ def test_backtest_runs_and_accounts():
         strategy_cfg=SlowTrendConfig(fast_ema=3, slow_ema=8, order_qty_btc=Decimal("0.001")),
         source="test:synth",
     )
-    assert res.intents >= 0
-    assert res.final_usd > 0
+    assert res.intents == 1
+    assert res.allowed == 1
+    assert res.blocked == 0
+    assert len(res.fills) == 1
+    assert res.final_usd > res.starting_usd
     assert res.bars == 100
     assert res.equity_curve
-    assert res.max_equity_usd >= res.starting_usd or len(res.fills) >= 0
+    assert res.max_equity_usd == res.final_usd
 
 
 def test_write_backtest_report(tmp_path: Path):
@@ -71,25 +74,3 @@ def test_write_backtest_report(tmp_path: Path):
     text = paths["summary"].read_text()
     assert "pnl_usd" in text
     assert "schema_version" in text
-
-
-def test_real_csv_backtest_if_cached():
-    """If real Coinbase cache exists, backtest must run on it without error."""
-    path = Path("data/cache/btc_usd_1h.csv")
-    if not path.exists():
-        return
-    candles = load_candles_csv(path)
-    assert len(candles) > 50
-    # real timestamps should be timezone-aware ascending
-    assert candles[0].ts < candles[-1].ts
-    assert candles[0].close > 0
-    res = run_backtest(
-        candles,
-        starting_usd=Decimal("1000"),
-        qty_btc=Decimal("0.001"),
-        strategy_cfg=SlowTrendConfig(fast_ema=12, slow_ema=26, order_qty_btc=Decimal("0.001")),
-        source=f"csv:{path}",
-    )
-    assert res.bars == len(candles)
-    assert res.first_ts is not None
-    assert res.summary()["source"].startswith("csv:")

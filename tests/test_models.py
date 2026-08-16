@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -44,5 +44,5 @@ def test_balances_no_float():
 
 
 def test_quote_mid():
-    q = Quote(bid="100", ask="102", ts=datetime.now(timezone.utc))
+    q = Quote(bid="100", ask="102", ts=datetime.now(UTC))
     assert q.mid == Decimal("101")

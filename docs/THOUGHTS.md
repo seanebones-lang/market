@@ -12,43 +12,35 @@ This is open-ended **spot crypto custody + continuous market + hostile broker su
 
 | AK47 | Robinhood BTC spot |
 |------|--------------------|
-| Venue designed around API/bots-ish access (Kalshi) | Robinhood: **no official retail trading API** |
+| Venue designed around API/bots-ish access (Kalshi) | Robinhood: official API, continuous inventory risk |
 | Contract dies in 15m; P&L settles cleanly | BTC position can sit forever; path dependency |
 | Binary yes/no + fee model you already modeled | Spread, partial fills, funding friction, transfer delays |
 | Small discrete action space | Continuous size, timing, inventory |
 | `/proc` + `verify_live` can pin process truth | Must pin **broker balances + orders** as truth |
 | Freeze = stop trading known instrument | Freeze = flatten or hold inventory risk |
 | Edge can be measured per window | Edge drowns in noise + fees unless highly selective |
-| Ban risk lower / different shape | Unofficial RH automation → **ToS ban / lock risk** |
+| Short-lived contract risk | Personal crypto account, API-key, custody, and account-restriction risk |
 
 ## The Robinhood problem (the real boss fight)
 
-1. **No official API** for automated retail stock/crypto trading.
-2. Community clients (`robin_stocks`, etc.) reverse-engineer private endpoints.
-3. That means:
-   - ToS violation risk
-   - sudden breakage on app updates
-   - MFA / device / SMS / email challenge hell
-   - silent order rejects
-   - account lockdown risk
-4. Crypto on RH is **not** a full pro stack:
-   - historically limited order controls vs Coinbase Advanced / Kraken
-   - not ideal for HFT or tight market-making
-   - good enough only for slow, small, defensive strategies
+Robinhood now provides an official US Crypto Trading API. The difficult parts are therefore not
+reverse-engineered login sessions; they are cost, state, and failure correctness:
 
-**Recommendation:** build a **BrokerPort** interface. Implement:
+1. V1 and v2 use different fee/routing behavior.
+2. Best price is not a size-aware execution guarantee.
+3. Partial executions, cancellation races, timeouts, and account restrictions must be reconciled.
+4. API credentials and Ed25519 private keys require least-privilege handling and rotation.
+5. A personal spot account still has continuous custody, tax-lot, and inventory risk.
 
-- `SimBroker` first
-- `RobinhoodBroker` second (unofficial, fragile, optional)
-- `CoinbaseAdvancedBroker` as the *serious* live path if/when you want durability
-
-Do **not** hardcode the whole bot to robin_stocks call sites.
+**Recommendation:** keep a strict `BrokerPort`, implement `SimBroker`, then add the official
+`RobinhoodBroker` in read-only mode. Do not enable order permissions until the research,
+persistence, execution, and operations gates pass.
 
 ## Complexity map (honest)
 
 ### 1. Execution / brokerage layer (hard)
 
-- Auth session lifecycle
+- Signed-request credential lifecycle
 - Balance + position sync
 - Order submit / cancel / status
 - Idempotency keys (don’t double-buy on retry)
@@ -91,7 +83,8 @@ Do **not** hardcode the whole bot to robin_stocks call sites.
 
 ### 6. Legal / account risk (non-code)
 
-- Unofficial automation may get the RH account restricted.
+- The account owner must review the current Robinhood agreements, credential permissions, and
+  personal/self-directed account constraints before live use.
 - Tax lot tracking matters once real.
 - Do not put rent money in v1.
 
@@ -146,7 +139,7 @@ If AK47 live ops complexity = 1.0:
 | Reconcile/ledger | 3× |
 | Auth/session | 3× |
 | Strategy evaluation | 2–3× |
-| Regulatory/ToS/account risk | 5×+ |
+| Regulatory/account/credential risk | 5×+ |
 | Overall project | **~3–5×** AK47 to reach equivalent ops confidence |
 
 ## Suggested product shape

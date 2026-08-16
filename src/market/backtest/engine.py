@@ -12,7 +12,6 @@ from market.domain.models import Balances, Candle, Fill, Position, Side
 from market.risk.gate import RiskConfig, RiskGate, RiskState
 from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
 
-
 SCHEMA_VERSION = 1
 
 
@@ -163,8 +162,7 @@ def run_backtest(
                     else:
                         blocked += 1
                 else:
-                    if q > btc:
-                        q = btc
+                    q = min(q, btc)
                     if q > 0:
                         usd += q * px - fee
                         btc -= q
@@ -194,11 +192,9 @@ def run_backtest(
 
         # mark-to-market equity
         equity = usd + btc * bar.close
-        if equity > peak:
-            peak = equity
+        peak = max(peak, equity)
         dd = peak - equity
-        if dd > max_dd:
-            max_dd = dd
+        max_dd = max(max_dd, dd)
         if record_equity_every > 0 and (i % record_equity_every == 0 or i == len(candles)):
             equity_curve.append(
                 EquityPoint(

@@ -1,19 +1,16 @@
-"""Robinhood adapter guards and session stub.
+"""Official Robinhood Crypto Trading API boundary with a compile-time live lock.
 
-UNOFFICIAL. Violates Robinhood ToS if used against production endpoints.
-Live submits require ALL of:
-  - mode == live
-  - MARKET_RH_LIVE=1
-  - allow_live=True on broker
-Never default-on.
+The signed HTTP client is intentionally not implemented in G0. Live submissions
+remain unreachable even when runtime flags are set. Read-only API work begins in G5.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
 from market.domain.models import (
     Balances,
@@ -25,7 +22,6 @@ from market.domain.models import (
     OrderType,
     Position,
     Quote,
-    Side,
     utcnow,
 )
 
@@ -38,37 +34,36 @@ class RobinhoodLiveDisabled(RuntimeError):
     """Attempted live submit without unlock."""
 
 
+LIVE_ORDER_SUBMISSION_ENABLED = False
+
+
 def rh_live_unlocked() -> bool:
     return os.environ.get("MARKET_RH_LIVE", "0").strip() in {"1", "true", "TRUE", "yes"}
 
 
 @dataclass
 class RobinhoodSession:
-    """Placeholder session. Real HTTP comes later behind this boundary."""
+    """Official API credential reference; signing/HTTP transport comes later."""
 
-    username: str | None = None
-    authenticated: bool = False
+    api_key: str | None = None
+    private_key_path: str | None = None
+    configured: bool = False
     last_error: str | None = None
 
-    def login(self, username: str, password: str, totp: str | None = None) -> None:
-        # Intentionally no network in v0 skeleton.
-        if not username or not password:
-            self.authenticated = False
-            self.last_error = "missing_credentials"
+    def configure(self, api_key: str, private_key_path: str) -> None:
+        """Reference action-scoped official API credentials without reading the key."""
+        if not api_key or not private_key_path:
+            self.configured = False
+            self.last_error = "missing_official_api_credentials"
             raise RobinhoodAuthError("missing_credentials")
-        # skeleton: mark ready only when explicitly forced for tests
-        if os.environ.get("MARKET_RH_FAKE_LOGIN") == "1":
-            self.username = username
-            self.authenticated = True
-            self.last_error = None
-            return
-        self.authenticated = False
-        self.last_error = "network_login_not_implemented"
-        raise RobinhoodAuthError("network_login_not_implemented")
+        self.api_key = api_key
+        self.private_key_path = private_key_path
+        self.configured = True
+        self.last_error = None
 
     def ensure_auth(self) -> None:
-        if not self.authenticated:
-            raise RobinhoodAuthError(self.last_error or "not_authenticated")
+        if not self.configured:
+            raise RobinhoodAuthError(self.last_error or "official_api_not_configured")
 
 
 @dataclass
@@ -94,6 +89,8 @@ class RobinhoodBroker:
     _by_client: dict[str, str] = field(default_factory=dict)
 
     def _guard_live_submit(self) -> None:
+        if not LIVE_ORDER_SUBMISSION_ENABLED:
+            raise RobinhoodLiveDisabled("live_order_submission_disabled_by_build")
         if not self.mode_is_live:
             raise RobinhoodLiveDisabled("mode_not_live")
         if not self.allow_live:
@@ -206,6 +203,8 @@ def build_shadow_ack(intent: Intent) -> dict[str, Any]:
         "client_order_id": intent.client_order_id,
         "side": intent.side.value,
         "qty_btc": str(intent.qty_btc),
-        "order_type": intent.order_type.value if isinstance(intent.order_type, OrderType) else intent.order_type,
+        "order_type": intent.order_type.value
+        if isinstance(intent.order_type, OrderType)
+        else intent.order_type,
         "reason": intent.reason,
     }

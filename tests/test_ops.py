@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from market.ops.freeze import FreezeControl
@@ -17,7 +17,7 @@ def test_freeze_file(tmp_path: Path):
 
 def test_heartbeat_fresh_and_stale(tmp_path: Path):
     hb = Heartbeat(tmp_path / "hb.json", max_age_seconds=60)
-    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=UTC)
     assert not hb.status(now).ok
     hb.beat(now)
     assert hb.status(now + timedelta(seconds=10)).ok

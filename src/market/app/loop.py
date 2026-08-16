@@ -3,14 +3,26 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from market.config import AppConfig
-from market.domain.models import Candle, Intent, Mode, Side, utcnow
+from market.domain.models import (
+    Balances,
+    Candle,
+    Fill,
+    Intent,
+    Mode,
+    Order,
+    OrderAck,
+    Position,
+    Quote,
+    utcnow,
+)
 from market.execution.reconcile import reconcile
 from market.execution.sim import SimBroker
 from market.ledger.jsonl import JsonlLedger
@@ -21,12 +33,12 @@ from market.strategy.slow_trend import SlowTrendV1
 
 
 class SupportsBroker(Protocol):
-    def get_balances(self): ...
-    def get_btc_position(self): ...
-    def get_open_orders(self): ...
-    def place_order(self, intent: Intent): ...
-    def get_quote(self, symbol: str = "BTC"): ...
-    def get_fills(self): ...
+    def get_balances(self) -> Balances: ...
+    def get_btc_position(self) -> Position: ...
+    def get_open_orders(self) -> list[Order]: ...
+    def place_order(self, intent: Intent) -> OrderAck: ...
+    def get_quote(self, symbol: str = "BTC") -> Quote: ...
+    def get_fills(self) -> list[Fill]: ...
 
 
 @dataclass
@@ -43,7 +55,7 @@ class LoopStats:
 @dataclass
 class TradingLoop:
     config: AppConfig
-    broker: Any
+    broker: SupportsBroker
     strategy: SlowTrendV1
     risk: RiskGate
     intents_ledger: JsonlLedger
@@ -70,7 +82,7 @@ class TradingLoop:
             }
         )
 
-    def tick(self, now: datetime | None = None) -> dict:
+    def tick(self, now: datetime | None = None) -> dict[str, Any]:
         now = now or utcnow()
         self.stats.ticks += 1
         self.heartbeat.beat(now)
@@ -221,9 +233,11 @@ class TradingLoop:
                 if i < half:
                     mid = Decimal("100000") + Decimal(i) * Decimal("250")
                 else:
-                    mid = Decimal("100000") + Decimal(half) * Decimal("250") - Decimal(
-                        i - half
-                    ) * Decimal("400")
+                    mid = (
+                        Decimal("100000")
+                        + Decimal(half) * Decimal("250")
+                        - Decimal(i - half) * Decimal("400")
+                    )
                 self.broker.set_quote(mid - Decimal("5"), mid + Decimal("5"))
                 tick_now = base_now + timedelta(hours=i)
             else:
@@ -265,7 +279,7 @@ def seed_trending_candles(
     start_ts: datetime | None = None,
 ) -> list[Candle]:
     """Generate synthetic uptrend then downtrend for strategy tests / demos."""
-    start_ts = start_ts or datetime(2026, 1, 1, tzinfo=timezone.utc)
+    start_ts = start_ts or datetime(2026, 1, 1, tzinfo=UTC)
     out: list[Candle] = []
     px = start
     half = n // 2

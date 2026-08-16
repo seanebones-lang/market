@@ -1,6 +1,3 @@
-import os
-from decimal import Decimal
-
 import pytest
 
 from market.domain.models import Intent, OrderAck, OrderStatus, OrderType, Side, utcnow
@@ -18,45 +15,19 @@ def test_rh_live_unlocked_default_off(monkeypatch):
     assert rh_live_unlocked() is False
 
 
-def test_place_order_blocked_without_live_flags(monkeypatch):
-    monkeypatch.setenv("MARKET_RH_LIVE", "0")
-    b = RobinhoodBroker(allow_live=True, mode_is_live=True)
-    b.session.authenticated = True
-    with pytest.raises(RobinhoodLiveDisabled):
-        b.place_order(Intent(side=Side.BUY, qty_btc="0.001", reason="t"))
-
-
-def test_place_order_blocked_when_mode_not_live(monkeypatch):
-    monkeypatch.setenv("MARKET_RH_LIVE", "1")
-    b = RobinhoodBroker(allow_live=True, mode_is_live=False)
-    b.session.authenticated = True
-    with pytest.raises(RobinhoodLiveDisabled, match="mode_not_live"):
-        b.place_order(Intent(side=Side.BUY, qty_btc="0.001", reason="t"))
-
-
-def test_place_order_blocked_when_allow_live_false(monkeypatch):
-    monkeypatch.setenv("MARKET_RH_LIVE", "1")
-    b = RobinhoodBroker(allow_live=False, mode_is_live=True)
-    b.session.authenticated = True
-    with pytest.raises(RobinhoodLiveDisabled, match="allow_live"):
-        b.place_order(Intent(side=Side.BUY, qty_btc="0.001", reason="t"))
-
-
-def test_place_order_requires_auth_even_when_unlocked(monkeypatch):
-    monkeypatch.setenv("MARKET_RH_LIVE", "1")
-    b = RobinhoodBroker(allow_live=True, mode_is_live=True)
-    b.session.authenticated = False
-    with pytest.raises(RobinhoodAuthError):
-        b.place_order(Intent(side=Side.BUY, qty_btc="0.001", reason="t"))
-
-
-def test_place_order_ok_with_transport(monkeypatch):
-    monkeypatch.setenv("MARKET_RH_LIVE", "1")
+@pytest.mark.parametrize("live_env", ["0", "1"])
+@pytest.mark.parametrize("mode_is_live", [False, True])
+@pytest.mark.parametrize("allow_live", [False, True])
+def test_live_transport_disabled_by_build(monkeypatch, live_env, mode_is_live, allow_live):
+    monkeypatch.setenv("MARKET_RH_LIVE", live_env)
+    called = 0
 
     def transport(intent: Intent) -> OrderAck:
+        nonlocal called
+        called += 1
         return OrderAck(
             client_order_id=intent.client_order_id,
-            broker_order_id="br1",
+            broker_order_id="must-not-run",
             status=OrderStatus.FILLED,
             side=intent.side,
             qty_btc=intent.qty_btc,
@@ -65,17 +36,15 @@ def test_place_order_ok_with_transport(monkeypatch):
         )
 
     b = RobinhoodBroker(
-        allow_live=True,
-        mode_is_live=True,
+        allow_live=allow_live,
+        mode_is_live=mode_is_live,
         transport_place=transport,
     )
-    b.session.authenticated = True
-    intent = Intent(side=Side.BUY, qty_btc="0.001", reason="t", client_order_id="cid1")
-    ack = b.place_order(intent)
-    assert ack.status == OrderStatus.FILLED
-    # idempotent
-    ack2 = b.place_order(intent)
-    assert ack2.broker_order_id == "br1"
+    b.session.configure("rh-api-test", "/outside/repository/private-key")
+    intent = Intent(side=Side.BUY, qty_btc="0.001", reason="t")
+    with pytest.raises(RobinhoodLiveDisabled, match="disabled_by_build"):
+        b.place_order(intent)
+    assert called == 0
 
 
 def test_auth_error_callback():
@@ -85,21 +54,21 @@ def test_auth_error_callback():
         seen.append(str(exc))
 
     b = RobinhoodBroker(on_auth_error=on_err)
-    b.session.authenticated = False
     with pytest.raises(RobinhoodAuthError):
         b.get_balances()
     assert seen
 
 
-def test_session_login_not_implemented(monkeypatch):
-    monkeypatch.delenv("MARKET_RH_FAKE_LOGIN", raising=False)
+def test_session_rejects_missing_official_credentials():
     s = RobinhoodSession()
-    with pytest.raises(RobinhoodAuthError, match="not_implemented"):
-        s.login("u", "p")
+    with pytest.raises(RobinhoodAuthError, match="missing_credentials"):
+        s.configure("", "")
+    assert not s.configured
 
 
-def test_session_fake_login(monkeypatch):
-    monkeypatch.setenv("MARKET_RH_FAKE_LOGIN", "1")
+def test_session_configures_official_credential_reference():
     s = RobinhoodSession()
-    s.login("u", "p")
-    assert s.authenticated
+    s.configure("rh-api-test", "/outside/repository/private-key")
+    s.ensure_auth()
+    assert s.configured
+    assert s.api_key == "rh-api-test"

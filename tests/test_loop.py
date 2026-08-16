@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+from market.app.loop import TradingLoop, build_sim_loop, seed_trending_candles
 from market.config import load_config
 from market.domain.models import Mode
-from market.app.loop import TradingLoop, build_sim_loop, seed_trending_candles
 from market.execution.sim import SimBroker
 from market.ledger.jsonl import JsonlLedger
 from market.ops.freeze import FreezeControl
@@ -34,7 +34,9 @@ def test_sim_loop_runs(tmp_path: Path):
     loop = TradingLoop(
         config=cfg,
         broker=SimBroker(usd=Decimal("5000"), bid=Decimal("100000"), ask=Decimal("100010")),
-        strategy=SlowTrendV1(SlowTrendConfig(fast_ema=3, slow_ema=5, order_qty_btc=Decimal("0.001"))),
+        strategy=SlowTrendV1(
+            SlowTrendConfig(fast_ema=3, slow_ema=5, order_qty_btc=Decimal("0.001"))
+        ),
         risk=RiskGate(risk),
         intents_ledger=JsonlLedger(tmp_path / "intents.jsonl"),
         acks_ledger=JsonlLedger(tmp_path / "acks.jsonl"),
@@ -45,7 +47,7 @@ def test_sim_loop_runs(tmp_path: Path):
         risk_state=RiskState(),
     )
     # drive prices to create activity
-    base = datetime(2026, 2, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 2, 1, tzinfo=UTC)
     for i in range(30):
         # continue up then down via quote
         if i < 15:
@@ -56,8 +58,12 @@ def test_sim_loop_runs(tmp_path: Path):
         loop.tick(now=base + timedelta(hours=i))
     assert loop.stats.ticks == 30
     assert (tmp_path / "hb.json").exists()
-    # ledger files used
-    assert len(loop.intents_ledger.read_all()) >= 0
+    assert loop.stats.intents == 2
+    assert loop.stats.submits == 2
+    assert loop.stats.fills == 2
+    assert len(loop.intents_ledger.read_all()) == 2
+    assert len(loop.acks_ledger.read_all()) == 2
+    assert len(loop.fills_ledger.read_all()) == 2
 
 
 def test_freeze_blocks_entries(tmp_path: Path):
@@ -82,7 +88,7 @@ def test_freeze_blocks_entries(tmp_path: Path):
     loop.strategy.evaluate = lambda candles, pos: Intent(  # type: ignore[method-assign]
         side=Side.BUY, qty_btc="0.001", reason="forced"
     )
-    r = loop.tick(now=datetime(2026, 3, 1, tzinfo=timezone.utc))
+    r = loop.tick(now=datetime(2026, 3, 1, tzinfo=UTC))
     assert r["allow"] is False
     assert "freeze_entries" in r["violations"]
     assert loop.stats.submits == 0
@@ -116,7 +122,7 @@ def test_live_dry_never_submits(tmp_path: Path):
     from market.domain.models import Intent, Side
 
     loop.strategy.evaluate = lambda c, p: Intent(side=Side.BUY, qty_btc="0.001", reason="forced")  # type: ignore[method-assign]
-    r = loop.tick(now=datetime(2026, 3, 1, tzinfo=timezone.utc))
+    r = loop.tick(now=datetime(2026, 3, 1, tzinfo=UTC))
     assert r["allow"] is True
     assert r["submitted"] is False
     assert submits["n"] == 0

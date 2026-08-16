@@ -2,17 +2,44 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any, Literal, Self
 
-from market.domain.models import Candle, Intent, Position, Side
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+from market.domain.models import Candle, D, Intent, Position, Side
 
 
-@dataclass
-class SlowTrendConfig:
+class SlowTrendConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: Literal["slow_trend_v1"] = "slow_trend_v1"
+    timeframe: Literal["1h"] = "1h"
     fast_ema: int = 12
     slow_ema: int = 26
     order_qty_btc: Decimal = Decimal("0.001")
+
+    @field_validator("fast_ema", "slow_ema")
+    @classmethod
+    def _ema_positive(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("EMA periods must be > 0")
+        return value
+
+    @field_validator("order_qty_btc", mode="before")
+    @classmethod
+    def _qty_decimal(cls, value: Any) -> Decimal:
+        if isinstance(value, float):
+            raise TypeError("float not allowed for order_qty_btc")
+        return D(value)
+
+    @model_validator(mode="after")
+    def _ema_order(self) -> Self:
+        if self.fast_ema >= self.slow_ema:
+            raise ValueError("fast_ema must be less than slow_ema")
+        if self.order_qty_btc <= 0:
+            raise ValueError("order_qty_btc must be > 0")
+        return self
 
 
 def ema_series(values: list[Decimal], period: int) -> list[Decimal | None]:

@@ -1,17 +1,16 @@
-from datetime import datetime, timezone
-from decimal import Decimal
 from pathlib import Path
+
+import pytest
 
 from market.app.loop import TradingLoop
 from market.config import load_config
-from market.domain.models import Intent, Mode, Side
-from market.execution.robinhood import RobinhoodAuthError, RobinhoodBroker
+from market.execution.robinhood import RobinhoodAuthError
 from market.execution.sim import SimBroker
 from market.ledger.jsonl import JsonlLedger
 from market.ops.freeze import FreezeControl
 from market.ops.heartbeat import Heartbeat
-from market.risk.gate import RiskConfig, RiskGate, RiskState
-from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1
+from market.risk.gate import RiskConfig, RiskGate
+from market.strategy.slow_trend import SlowTrendV1
 
 
 def test_auth_error_freezes_entries(tmp_path: Path):
@@ -35,10 +34,14 @@ def test_auth_error_freezes_entries(tmp_path: Path):
     assert any(r.get("type") == "auth_freeze" for r in loop.acks_ledger.read_all())
 
 
-def test_cli_refuses_live_without_env(tmp_path: Path, monkeypatch):
+@pytest.mark.parametrize("live_env", [None, "1"])
+def test_cli_refuses_live_for_every_runtime_flag(tmp_path: Path, monkeypatch, live_env):
     from market.app.cli import main
 
-    monkeypatch.delenv("MARKET_RH_LIVE", raising=False)
+    if live_env is None:
+        monkeypatch.delenv("MARKET_RH_LIVE", raising=False)
+    else:
+        monkeypatch.setenv("MARKET_RH_LIVE", live_env)
     # write a live config
     cfg = tmp_path / "live.yaml"
     cfg.write_text(
@@ -98,8 +101,8 @@ data_dir: {tmp_path / "data"}
     assert rc == 0
     # no fills file content from real submits
     fills = tmp_path / "data" / "ledger" / "fills.jsonl"
-    if fills.exists():
-        assert fills.read_text().strip() == ""
+    assert fills.exists()
+    assert fills.read_text().strip() == ""
     acks = (tmp_path / "data" / "ledger" / "acks.jsonl").read_text()
     # shadow only if any allowed
     assert "ack" not in acks.replace("shadow_ack", "")

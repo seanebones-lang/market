@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from market.domain.models import utcnow
@@ -25,7 +25,7 @@ class Heartbeat:
 
     def beat(self, now: datetime | None = None) -> None:
         now = now or utcnow()
-        payload = {"ts": now.astimezone(timezone.utc).isoformat()}
+        payload = {"ts": now.astimezone(UTC).isoformat()}
         self.path.write_text(json.dumps(payload), encoding="utf-8")
 
     def status(self, now: datetime | None = None) -> HeartbeatStatus:
@@ -36,7 +36,7 @@ class Heartbeat:
             data = json.loads(self.path.read_text(encoding="utf-8"))
             ts = datetime.fromisoformat(data["ts"])
             if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.replace(tzinfo=UTC)
         except Exception as exc:  # noqa: BLE001
             return HeartbeatStatus(ok=False, age_seconds=None, reason=f"corrupt:{exc}")
         age = (now - ts).total_seconds()

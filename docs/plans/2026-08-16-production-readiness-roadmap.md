@@ -137,26 +137,26 @@ while the foundation is rebuilt.
 
 ### Tasks
 
-- [ ] **G0.1** Preserve the existing hard live abort and add a test proving every CLI/configuration
+- [x] **G0.1** Preserve the existing hard live abort and add a test proving every CLI/configuration
   combination produces zero external order POSTs.
-- [ ] **G0.2** Replace all stale claims that Robinhood has no official retail crypto API.
-- [ ] **G0.3** Remove username/password/TOTP design from the planned Robinhood path. Replace it with
+- [x] **G0.2** Replace all stale claims that Robinhood has no official retail crypto API.
+- [x] **G0.3** Remove username/password/TOTP design from the planned Robinhood path. Replace it with
   official API-key and Ed25519-signing terminology. Do not create a trading-enabled credential yet.
-- [ ] **G0.4** Move the internet ticker check out of unit tests. Use an injected/mock transport in
+- [x] **G0.4** Move the internet ticker check out of unit tests. Use an injected/mock transport in
   unit tests and place real network checks behind an explicit integration marker.
-- [ ] **G0.5** Replace assertions that cannot fail, including `intents >= 0`, `len(fills) >= 0`, and
+- [x] **G0.5** Replace assertions that cannot fail, including `intents >= 0`, `len(fills) >= 0`, and
   ledger length `>= 0`, with behavior-specific assertions.
-- [ ] **G0.6** Decide whether `src/market/app/loop 2.py` should be deleted, archived, or incorporated.
-  Do not change it without explicit owner approval.
-- [ ] **G0.7** Add CI for offline unit tests, lint, type checking, dependency audit, and coverage of
+- [x] **G0.6** Preserve the legacy `src/market/app/loop 2.py` snapshot in Git history, then remove
+  the obsolete duplicate from the active package so it cannot break imports or quality checks.
+- [x] **G0.7** Add CI for offline unit tests, lint, type checking, dependency audit, and coverage of
   safety-critical branches.
-- [ ] **G0.8** Record architecture decisions for accounting semantics, event timing, data sources,
+- [x] **G0.8** Record architecture decisions for accounting semantics, event timing, data sources,
   Robinhood API version, risk-loss definition, and order recovery.
-- [ ] **G0.9** Add a prominent `LIVE_TRADING_DISABLED` project status to operator documentation.
-- [ ] **G0.10** Make configuration fail closed: forbid extra keys, parse booleans strictly, validate
+- [x] **G0.9** Add a prominent `LIVE_TRADING_DISABLED` project status to operator documentation.
+- [x] **G0.10** Make configuration fail closed: forbid extra keys, parse booleans strictly, validate
   broker/mode/timeframe combinations, require `0 < fast_ema < slow_ema`, and reject negative or
   unbounded risk settings.
-- [ ] **G0.11** Mark all existing backtest reports exploratory and invalid for promotion because
+- [x] **G0.11** Mark all existing backtest reports exploratory and invalid for promotion because
   their timing, terminal accounting, and dataset-reproducibility requirements do not pass.
 
 ### Exit criteria

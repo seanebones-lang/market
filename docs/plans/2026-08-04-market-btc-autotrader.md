@@ -1,12 +1,16 @@
 # Market BTC Autotrader Implementation Plan
 
+> **Superseded on 2026-08-16.** This historical plan must not be used for live promotion. The
+> controlling plan is `docs/plans/2026-08-16-production-readiness-roadmap.md`; it requires
+> research evidence and operational qualification before any micro-live work.
+
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task when execution is approved.
 
 **Goal:** Build a broker-agnostic BTC spot autotrader loop with sim-first execution and an isolated Robinhood adapter for optional live buys/sells under hard risk rails.
 
 **Architecture:** Pure strategy → risk gate → BrokerPort → reconcile/ledger → ops. Robinhood is an adapter, not the core. Modes: sim / paper / live-dry / live.
 
-**Tech Stack:** Python 3.12+, pydantic settings, httpx, websockets (later), SQLite or JSONL ledger, pytest, rich CLI, python-dotenv. Optional unofficial RH client isolated behind interface. Telegram alerts via existing stack later.
+**Tech Stack:** Python 3.12+, pydantic settings, httpx, PyNaCl, websockets (later), SQLite, pytest, rich CLI, and the official Robinhood Crypto Trading API behind an isolated adapter.
 
 ---
 
@@ -128,18 +132,20 @@
 
 ---
 
-## Phase 3 — Dry-run “Robinhood shape”
+## Phase 3 — Historical dry-run “Robinhood shape”
 
-### Task 9: RobinhoodBroker skeleton (no live default)
+### Task 9: Official RobinhoodBroker skeleton (no live default)
 
-**Objective:** Adapter implementing BrokerPort with explicit `enabled` guard.
+**Objective:** Official API adapter implementing BrokerPort with read-only actions first and a
+build-level live-order lock.
 
 **Files:**
-- Create: `src/market/execution/robinhood/client.py`
+- Create: `src/market/execution/robinhood/client.py` using action-scoped API credentials and
+  Ed25519 request signing
 - Create: `src/market/execution/robinhood/broker.py`
 - Test: `tests/test_robinhood_guard.py`
 
-**Hard rule:** Instantiating live submit path requires `MARKET_RH_LIVE=1` and mode=live.
+**Hard rule:** Runtime flags alone never enable live submission. Follow the controlling roadmap.
 
 ### Task 10: live-dry mode
 
@@ -149,7 +155,7 @@
 - Modify: `src/market/app/loop.py`
 - Test: `tests/test_live_dry.py`
 
-### Task 11: Auth/session failure handling
+### Task 11: API signing/authentication failure handling
 
 **Objective:** On auth errors → freeze entries + alert hook.
 
@@ -159,7 +165,7 @@
 
 ---
 
-## Phase 4 — Micro live (manual unlock only)
+## Phase 4 — Superseded; micro-live moved after research and operational qualification
 
 ### Task 12: Micro-live runbook
 
@@ -215,8 +221,8 @@
 | G1 | pytest green on domain/risk/strategy/sim |
 | G2 | sim loop 24h unattended locally |
 | G3 | live-dry zero submits proven |
-| G4 | micro live roundtrip with caps |
-| G5 | multi-day NET discussion only until evidence |
+| G4 | superseded — see 2026-08-16 roadmap |
+| G5 | superseded — see 2026-08-16 roadmap |
 
 ---
 

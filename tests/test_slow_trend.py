@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from market.domain.models import Candle, Position, Side
@@ -7,7 +7,7 @@ from market.strategy.slow_trend import SlowTrendConfig, SlowTrendV1, ema_series
 
 def _candles_up_then_flat(n_up=40, start=Decimal("100")) -> list[Candle]:
     out = []
-    ts0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    ts0 = datetime(2026, 1, 1, tzinfo=UTC)
     px = start
     for i in range(n_up):
         px = px + Decimal("1")
@@ -35,7 +35,7 @@ def test_bullish_cross_buys_when_flat():
     # strong steady uptrend should eventually be fast>slow; craft explicit cross
     cfg = SlowTrendConfig(fast_ema=3, slow_ema=5, order_qty_btc=Decimal("0.001"))
     s = SlowTrendV1(cfg)
-    ts0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    ts0 = datetime(2026, 1, 1, tzinfo=UTC)
     # down / flat then sharp up to force cross
     prices = [10, 10, 10, 10, 10, 10, 10, 9, 9, 9, 15, 16, 17, 18]
     candles = [
@@ -63,7 +63,7 @@ def test_bullish_cross_buys_when_flat():
 def test_no_pyramid_when_long():
     cfg = SlowTrendConfig(fast_ema=3, slow_ema=5, order_qty_btc=Decimal("0.001"))
     s = SlowTrendV1(cfg)
-    ts0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    ts0 = datetime(2026, 1, 1, tzinfo=UTC)
     prices = [10, 10, 10, 10, 10, 10, 10, 9, 9, 9, 15, 16, 17, 18]
     candles = [
         Candle(
@@ -85,7 +85,7 @@ def test_no_pyramid_when_long():
 def test_bearish_cross_sells_when_long():
     cfg = SlowTrendConfig(fast_ema=3, slow_ema=5, order_qty_btc=Decimal("0.001"))
     s = SlowTrendV1(cfg)
-    ts0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    ts0 = datetime(2026, 1, 1, tzinfo=UTC)
     # up then sharp down
     prices = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 5, 4, 3, 2]
     candles = [

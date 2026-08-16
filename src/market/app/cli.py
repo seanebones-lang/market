@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import time
+from datetime import UTC
 from decimal import Decimal
 from pathlib import Path
 
@@ -42,7 +43,9 @@ def main(argv: list[str] | None = None) -> int:
     paper_p.add_argument("--cash", default="1000")
     paper_p.add_argument("--ticks", type=int, default=5, help="Live poll ticks after hist replay")
     paper_p.add_argument("--sleep", type=float, default=2.0, help="Seconds between live ticks")
-    paper_p.add_argument("--batches", type=int, default=2, help="Coinbase candle batches (~300/bar)")
+    paper_p.add_argument(
+        "--batches", type=int, default=2, help="Coinbase candle batches (~300/bar)"
+    )
     paper_p.add_argument("--no-replay", action="store_true", help="Skip hist candle replay")
 
     sub.add_parser("version", help="Print version")
@@ -104,9 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         if not out.is_absolute():
             out = root / out
         console.print(f"fetching BTC-USD granularity={args.granularity} batches={args.batches}")
-        candles = fetch_coinbase_candles(
-            granularity=args.granularity, limit_batches=args.batches
-        )
+        candles = fetch_coinbase_candles(granularity=args.granularity, limit_batches=args.batches)
         save_candles_csv(out, candles)
         console.print(f"[green]wrote[/green] {len(candles)} candles → {out}")
         if candles:
@@ -144,10 +145,12 @@ def main(argv: list[str] | None = None) -> int:
             if os.environ.get("MARKET_RH_LIVE", "0") != "1":
                 console.print(
                     "[red]refusing live mode[/red]: set MARKET_RH_LIVE=1 explicitly "
-                    "(and understand ToS/ban risk)"
+                    "after all production-readiness gates pass"
                 )
                 return 3
-            console.print("[red bold]LIVE MODE REQUESTED — not fully wired; aborting[/red bold]")
+            console.print(
+                "[red bold]LIVE MODE REQUESTED — order submission is disabled by this build[/red bold]"
+            )
             return 3
 
         if config.mode == Mode.PAPER:
@@ -191,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from market.backtest.engine import run_backtest, write_backtest_report
     from market.data.candles import fetch_coinbase_candles, load_candles_csv, save_candles_csv
@@ -244,7 +247,7 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
         source=source,
     )
 
-    run_id = args.run_id or datetime.now(timezone.utc).strftime("bt_%Y%m%dT%H%M%SZ")
+    run_id = args.run_id or datetime.now(UTC).strftime("bt_%Y%m%dT%H%M%SZ")
     out_dir = Path(args.out_dir)
     if not out_dir.is_absolute():
         out_dir = root / out_dir
@@ -267,12 +270,8 @@ def _cmd_backtest(args: argparse.Namespace, root: Path) -> int:
     )
     if result.fills:
         f0, f1 = result.fills[0], result.fills[-1]
-        console.print(
-            f"first_fill {f0.side.value} {f0.qty_btc}@{f0.price_usd} {f0.ts.isoformat()}"
-        )
-        console.print(
-            f"last_fill  {f1.side.value} {f1.qty_btc}@{f1.price_usd} {f1.ts.isoformat()}"
-        )
+        console.print(f"first_fill {f0.side.value} {f0.qty_btc}@{f0.price_usd} {f0.ts.isoformat()}")
+        console.print(f"last_fill  {f1.side.value} {f1.qty_btc}@{f1.price_usd} {f1.ts.isoformat()}")
     console.print(f"[green]wrote[/green] {paths['summary']}")
     console.print(f"       {paths['fills']} ({len(result.fills)} rows)")
     console.print(f"       {paths['equity']} ({len(result.equity_curve)} points)")

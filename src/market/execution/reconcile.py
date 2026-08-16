@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from market.domain.models import Fill, Order, OrderStatus
 
@@ -53,8 +53,11 @@ def reconcile(
     mismatches: list[str] = []
     if expect_filled_ids is not None:
         for cid in expect_filled_ids:
-            o = orders_by_client.get(cid)
-            if o is not None and o.status not in {OrderStatus.FILLED, OrderStatus.REJECTED}:
+            expected_order = orders_by_client.get(cid)
+            if expected_order is not None and expected_order.status not in {
+                OrderStatus.FILLED,
+                OrderStatus.REJECTED,
+            }:
                 mismatches.append(cid)
 
     ok = not missing and not extra and not mismatches

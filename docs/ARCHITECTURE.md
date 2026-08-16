@@ -73,7 +73,7 @@ class BrokerPort(Protocol):
 ### Adapters
 
 1. `SimBroker` — deterministic fills from quote + slippage model
-2. `RobinhoodBroker` — unofficial session client, isolated
+2. `RobinhoodBroker` — official Crypto Trading API client, read-only first
 3. (later) `CoinbaseAdvancedBroker` — official API keys
 
 All strategy/risk code imports **only** `BrokerPort`.
@@ -127,14 +127,13 @@ broker:
 
 ## Robinhood adapter notes
 
-- Isolate all unofficial HTTP/session code under `execution/robinhood/`
-- Never let strategy import it
-- Expect:
-  - login challenges
-  - cookie/session refresh
-  - schema drift
-- Feature-flag every live call
-- Default: entries disabled until explicit unlock file/env
+- Use only the official US Crypto Trading API under `execution/robinhood/`.
+- Authenticate with action-scoped API credentials and Ed25519 request signatures.
+- Store the private key outside the repository, logs, ledger, and database.
+- Start with read actions only: accounts, holdings, products, quotes, and orders.
+- Target v2 where fee-tier-aware account and estimated-price data is required.
+- Never let strategy code import the adapter.
+- Live submission remains disabled until G0-G8 pass and the CTO/account owner approve G9.
 
 ## Observability
 

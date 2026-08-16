@@ -2,15 +2,19 @@
 
 Autonomous **spot BTC** trader with a broker-adapter architecture.
 
-Primary target execution path: **Robinhood crypto (BTC)**.
-Design assumes Robinhood is hostile to bots (no official retail trading API) and builds the system so the hard parts (strategy, risk, ledger, ops) are broker-agnostic.
+Primary target execution path: the **official Robinhood Crypto Trading API (BTC-USD)**.
+The strategy, risk, ledger, and operations layers remain broker-agnostic.
 
-> Not financial advice. Live trading can lose the entire bankroll. Unofficial Robinhood automation can violate ToS and get the account locked.
+> **LIVE TRADING DISABLED.** The repository is in production-readiness gate G0. No build in
+> this repository is approved or able to submit a live Robinhood order.
+
+> Not financial advice. Live trading can lose the entire bankroll. Passing the project gates does
+> not guarantee profitability.
 
 ## Status
 
-Phase 1–3 — sim core + RH live guards + hist backtest.
-Paper/sim/live-dry only. No live orders. No credentials committed.
+Prototype sim, paper, and backtest components exist. The saved research runs are exploratory and
+invalid for strategy promotion. See `docs/RESEARCH-STATUS.md` and the production-readiness roadmap.
 
 ```bash
 cd ~/Desktop/market
@@ -39,12 +43,15 @@ cd ~/Desktop/market
 
 Candles are real Coinbase Exchange public BTC-USD bars (not synthetic).
 
-Live mode is hard-refused unless `MARKET_RH_LIVE=1` and still aborts until real RH transport exists.
+Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
+enable order submission.
 
 ## Docs
 
 - `docs/THOUGHTS.md` — why this is harder than AK47, constraints, recommendations
 - `docs/ARCHITECTURE.md` — system design
+- `docs/RESEARCH-STATUS.md` — why current results cannot support promotion
+- `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan
 - `docs/RISK.md` — hard risk rails before any live mode
 - `docs/START-HERE.md` — operator entry point

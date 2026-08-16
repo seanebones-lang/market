@@ -1,4 +1,4 @@
-"""Robinhood adapter (unofficial, optional, ToS risk)."""
+"""Official Robinhood Crypto Trading API adapter boundary (live locked)."""
 
 from market.execution.robinhood.broker import (
     RobinhoodAuthError,
