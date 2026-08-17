@@ -286,7 +286,7 @@ unlocked. G4-G10 and live money remain locked.
 
 ### Tasks
 
-- [ ] **G3.1** Write the hypothesis, economic rationale, allowed inputs, parameter search space, and
+- [x] **G3.1** Write the hypothesis, economic rationale, allowed inputs, parameter search space, and
   rejection criteria before running the study.
 - [ ] **G3.2** Freeze an untouched final holdout. Use anchored or rolling walk-forward train,
   validation, and test windows for all model/parameter choices.
@@ -302,6 +302,14 @@ unlocked. G4-G10 and live money remain locked.
   it and relabel it out-of-sample.
 - [ ] **G3.9** Produce a signed research memo with data lineage, assumptions, all tested variants,
   results, limitations, and go/no-go recommendation.
+
+**Increment record (2026-08-17):** `G3.1: PASS — PREREGISTRATION ONLY`. Protocol version 1.0 binds
+the existing long-only hourly EMA hypothesis, the immutable G1 dataset identity, a 36-pair search
+family, fixed sizing, conservative and doubled cost scenarios, a +10-bps lower-bound hurdle,
+multiplicity and parameter-neighborhood rules, risk budgets, and automatic rejection criteria.
+No G3 strategy result was generated. See `docs/research/G3.1-EMA-PREREGISTRATION.md` and
+`docs/evidence/G3.1-2026-08-17.md`. G3.2 is the only authorized next increment; the overall G3 gate
+and every later gate remain open/locked as applicable.
 
 ### Minimum graduation standard
 

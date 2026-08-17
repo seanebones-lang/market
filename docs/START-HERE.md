@@ -44,9 +44,11 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Begin G3.1 by preregistering the EMA hypothesis, rationale, inputs, search space, and rejection
-   criteria.
-2. Freeze the untouched G3 holdout before parameter exploration.
-3. Build the walk-forward experiment registry on the verified G1 dataset segments.
-4. Reject or promote the EMA hypothesis from untouched out-of-sample evidence.
+1. Treat `docs/research/G3.1-EMA-PREREGISTRATION.md` as binding protocol version 1.0; do not run or
+   tune the five-year strategy before the split is frozen.
+2. Complete G3.2 by freezing chronological walk-forward windows and the one untouched final
+   holdout.
+3. Build the G3.3 experiment registry for every preregistered pair, including failures and
+   zero-trade results.
+4. Reject or promote the EMA hypothesis only from the predeclared out-of-sample evidence.
 5. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.

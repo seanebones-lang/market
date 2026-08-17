@@ -51,6 +51,8 @@ current mechanics against hand-calculated fixtures; it does not test an investme
 G2.10 removes nondeterministic backtest order identity and makes schema-11 run directories
 immutable, self-contained, and checksum-verifiable. Each report binds preserved input candles,
 complete resolved config, seed contract, engine version, Git revision status, costs, executions,
-trades, equity, and metrics. The complete G2 research-engine gate now passes. The next valid study
-begins in G3 on the verified G1 segments with a preregistered walk-forward and untouched-holdout
-contract. No G3 evidence exists yet, and profitability can never be guaranteed.
+trades, equity, and metrics. The complete G2 research-engine gate now passes. G3.1 protocol version
+1.0 now preregisters the EMA hypothesis, allowed information, 36-pair family, cost scenarios,
+primary hurdle, risk budget, and rejection rules. It contains no strategy result. G3.2 must freeze
+the walk-forward and untouched-holdout contract before any five-year parameter evaluation. No G3
+edge evidence exists yet, and profitability can never be guaranteed.

@@ -78,6 +78,7 @@ enable order submission.
 - `docs/DATA.md` — candle schema, quality gate, immutable datasets, and gap policy
 - `docs/BACKTESTING.md` — event timing, anti-look-ahead proof, and remaining engine blockers
 - `docs/RESEARCH-STATUS.md` — why current results cannot support promotion
+- `docs/research/G3.1-EMA-PREREGISTRATION.md` — binding hypothesis and rejection protocol for G3
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan
 - `docs/RISK.md` — hard risk rails before any live mode
