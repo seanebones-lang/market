@@ -15,7 +15,11 @@ The strategy, risk, ledger, and operations layers remain broker-agnostic.
 ## Status
 
 Prototype sim, paper, and backtest components exist. The saved research runs are exploratory and
-invalid for strategy promotion. See `docs/RESEARCH-STATUS.md` and the production-readiness roadmap.
+invalid for strategy promotion. G0-G2 are complete. G3.1 and G3.2 preregistered the first EMA
+protocol and froze its splits without running the strategy; the synthetic-only G3.2b design check
+then retired protocol 1.0 before execution because its joint criteria had inadequate power. This is
+not evidence for or against EMA profitability. G3.3 is paused pending a prospective protocol 2.0.
+See `docs/PROJECT-STATUS.md`, `docs/RESEARCH-STATUS.md`, and the production-readiness roadmap.
 
 ```bash
 cd ~/Desktop/market
@@ -28,6 +32,10 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ./market.sh build-dataset --start 2021-08-16 --end 2026-08-16 --gap-policy segment
 ./market.sh verify-dataset --manifest data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json
 ./market.sh verify-research-splits --plan config/research/g3-ema-v1-splits.json
+env PYTHONPATH=src .venv/bin/python -m market.research.power_cli \
+  --split-plan config/research/g3-ema-v1-splits.json \
+  --study-definition config/research/g3-ema-v1-power-study.json \
+  --output /tmp/g3-ema-v1-power-study.json
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 .venv/bin/python -m market freeze --reason "manual"
@@ -67,20 +75,24 @@ including a next-open gap-up that rejects an order which became unaffordable wit
 inventory, fees, or the journal. G2.10 makes schema-11 reports self-contained and verifiable with
 deterministic order identities, preserved input candles, resolved config and seed checksums, engine
 and Git identity, immutable run directories, and a manifest binding every artifact. The G2 research
-engine gate is complete; profitability remains untested until G3.
+engine gate is complete. G3.2b validates study-design tooling but produces no market strategy
+evidence; profitability remains unestablished.
 
 Live mode is hard-refused by both the CLI and a build-level transport lock. Runtime flags cannot
 enable order submission.
 
 ## Docs
 
+- `docs/PROJECT-STATUS.md` — current gate, research, capability, and next-decision snapshot
 - `docs/THOUGHTS.md` — why this is harder than AK47, constraints, recommendations
 - `docs/ARCHITECTURE.md` — system design
 - `docs/DATA.md` — candle schema, quality gate, immutable datasets, and gap policy
 - `docs/BACKTESTING.md` — event timing, anti-look-ahead proof, and remaining engine blockers
 - `docs/RESEARCH-STATUS.md` — why current results cannot support promotion
-- `docs/research/G3.1-EMA-PREREGISTRATION.md` — binding hypothesis and rejection protocol for G3
-- `docs/research/G3.2-SPLIT-CONTRACT.md` — frozen walk-forward windows and final holdout
+- `docs/research/G3.1-EMA-PREREGISTRATION.md` — preserved protocol 1.0 EMA preregistration
+- `docs/research/G3.2-SPLIT-CONTRACT.md` — preserved protocol 1.0 split and holdout contract
+- `docs/evidence/G3.2b-2026-08-17.md` — corrected synthetic power evidence and design no-go
+- `docs/decisions/0003-retire-g3-ema-protocol-v1-before-execution.md` — protocol 1.0 disposition
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan
 - `docs/RISK.md` — hard risk rails before any live mode
