@@ -128,6 +128,50 @@ def main(argv: list[str] | None = None) -> int:
     verify_cost_p.add_argument("--manifest", required=True)
     verify_cost_p.add_argument("--root", default=".")
 
+    freeze_cost_run_p = sub.add_parser(
+        "freeze-rh-v2-cost-run",
+        help="Freeze a dated OFFLINE cost-sampling run plan; performs no collection",
+        description=(
+            "OFFLINE ONLY: bind an authorized future UTC window to the prospective Robinhood v2 "
+            "cost-sampling protocol. This command has no broker transport."
+        ),
+    )
+    freeze_cost_run_p.add_argument(
+        "--protocol",
+        default="config/research/rh-v2-cost-sampling-v1.json",
+    )
+    freeze_cost_run_p.add_argument("--start", required=True, help="First scheduled UTC slot")
+    freeze_cost_run_p.add_argument("--frozen-at", required=True, help="UTC plan-freeze timestamp")
+    freeze_cost_run_p.add_argument("--authorization-reference", required=True)
+    freeze_cost_run_p.add_argument("--run-id", default=None)
+    freeze_cost_run_p.add_argument("--out", required=True)
+    freeze_cost_run_p.add_argument("--root", default=".")
+
+    summarize_cost_p = sub.add_parser(
+        "summarize-rh-v2-cost-study",
+        help="Summarize a local corpus under a frozen OFFLINE cost-sampling plan",
+        description=(
+            "OFFLINE ONLY: verify local G3.2c bundles, measure prospective schedule coverage, "
+            "and write an immutable cost-study summary."
+        ),
+    )
+    summarize_cost_p.add_argument(
+        "--protocol",
+        default="config/research/rh-v2-cost-sampling-v1.json",
+    )
+    summarize_cost_p.add_argument("--run-plan", required=True)
+    summarize_cost_p.add_argument("--observations-root", required=True)
+    summarize_cost_p.add_argument("--out-dir", default="data/research/execution-cost-studies")
+    summarize_cost_p.add_argument("--root", default=".")
+
+    verify_cost_study_p = sub.add_parser(
+        "verify-rh-v2-cost-study",
+        help="Verify an immutable OFFLINE cost-sampling summary bundle",
+        description="Verify an immutable OFFLINE Robinhood v2 cost-sampling summary bundle.",
+    )
+    verify_cost_study_p.add_argument("--manifest", required=True)
+    verify_cost_study_p.add_argument("--root", default=".")
+
     bt_p = sub.add_parser(
         "backtest",
         help="Backtest slow_trend on REAL candle data (CSV cache and/or fresh Coinbase fetch)",
@@ -256,6 +300,99 @@ def main(argv: list[str] | None = None) -> int:
             f"{verified_cost_observation.indicative_round_trip_cost_bps}"
         )
         console.print("network_contact=false execution=false account_identifier_persisted=false")
+        return 0
+
+    if args.cmd == "freeze-rh-v2-cost-run":
+        from datetime import datetime
+
+        from market.research.cost_sampling import (
+            build_cost_sampling_run_plan,
+            load_cost_sampling_protocol,
+            write_cost_sampling_run_plan,
+        )
+
+        protocol_path = Path(args.protocol)
+        if not protocol_path.is_absolute():
+            protocol_path = root / protocol_path
+        output_path = Path(args.out)
+        if not output_path.is_absolute():
+            output_path = root / output_path
+        loaded_protocol = load_cost_sampling_protocol(protocol_path)
+        sampling_plan = build_cost_sampling_run_plan(
+            loaded_protocol,
+            scheduled_start=datetime.fromisoformat(args.start),
+            frozen_at=datetime.fromisoformat(args.frozen_at),
+            authorization_reference=args.authorization_reference,
+            run_id=args.run_id,
+        )
+        write_cost_sampling_run_plan(output_path, sampling_plan)
+        console.print(
+            f"[green]frozen offline[/green] run={sampling_plan.run_id} "
+            f"cycles={sampling_plan.expected_cycles} "
+            f"window={sampling_plan.scheduled_start.isoformat()}→"
+            f"{sampling_plan.scheduled_end.isoformat()}"
+        )
+        console.print("network_contact=false credential_created=false collection_started=false")
+        console.print(f"run_plan={output_path}")
+        return 0
+
+    if args.cmd == "summarize-rh-v2-cost-study":
+        from market.research.cost_sampling import (
+            analyze_cost_sampling_corpus,
+            load_cost_sampling_protocol,
+            load_cost_sampling_run_plan,
+            write_cost_sampling_evidence,
+        )
+
+        protocol_path = Path(args.protocol)
+        if not protocol_path.is_absolute():
+            protocol_path = root / protocol_path
+        run_plan_path = Path(args.run_plan)
+        if not run_plan_path.is_absolute():
+            run_plan_path = root / run_plan_path
+        observations_root = Path(args.observations_root)
+        if not observations_root.is_absolute():
+            observations_root = root / observations_root
+        output_dir = Path(args.out_dir)
+        if not output_dir.is_absolute():
+            output_dir = root / output_dir
+        loaded_protocol = load_cost_sampling_protocol(protocol_path)
+        loaded_plan = load_cost_sampling_run_plan(run_plan_path, loaded_protocol)
+        observation_manifests = sorted(observations_root.glob("*/manifest.json"))
+        analysis = analyze_cost_sampling_corpus(
+            loaded_protocol,
+            loaded_plan,
+            observation_manifests,
+        )
+        study_artifacts = write_cost_sampling_evidence(output_dir, analysis)
+        summary = analysis.summary
+        color = "green" if summary.admission_status == "pass" else "red"
+        console.print(
+            f"[{color}]study {summary.admission_status.upper()}[/{color}] "
+            f"summary={summary.summary_id} complete={summary.complete_cycles}/"
+            f"{summary.expected_cycles} coverage={summary.overall_cycle_coverage}"
+        )
+        console.print(
+            f"failures={','.join(summary.admission_failures) if summary.admission_failures else 'none'}"
+        )
+        console.print("network_contact=false execution=false strategy_result=false")
+        console.print(f"manifest={study_artifacts.manifest_path}")
+        return 0 if summary.admission_status == "pass" else 4
+
+    if args.cmd == "verify-rh-v2-cost-study":
+        from market.research.cost_sampling import verify_cost_sampling_evidence
+
+        manifest_path = Path(args.manifest)
+        if not manifest_path.is_absolute():
+            manifest_path = root / manifest_path
+        study_artifacts = verify_cost_sampling_evidence(manifest_path)
+        summary = study_artifacts.analysis.summary
+        console.print(
+            f"[green]verified offline[/green] summary={summary.summary_id} "
+            f"admission={summary.admission_status} complete={summary.complete_cycles}/"
+            f"{summary.expected_cycles}"
+        )
+        console.print("network_contact=false execution=false strategy_result=false")
         return 0
 
     if args.cmd == "fetch-candles":

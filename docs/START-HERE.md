@@ -63,4 +63,6 @@ Nothing graduates to `live` without passing G0-G8 in
 5. Keep the registry/evidence layer strategy-agnostic so the next hypothesis need not be an EMA.
 6. Treat G3.2c as an offline schema only. Its fixture is synthetic and does not set a cost
    assumption; a real sampler still requires separate authorization.
-7. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.
+7. G3.2d freezes how a future 30-day sample would run and be analyzed, but no dated production run
+   plan exists. Do not invent an authorization reference or begin collection from the template.
+8. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.

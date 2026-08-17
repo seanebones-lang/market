@@ -298,6 +298,10 @@ unlocked. G4-G10 and live money remain locked.
   contract before any broker sampler is authorized. Preserve spread, size impact, fee, total cost,
   and total credit separately; redact account fields; write immutable evidence; and do not add
   credentials, signing, HTTP transport, orders, or broker contact.
+- [x] **G3.2d** Freeze the future route-cost sampling and analysis protocol before real
+  observations. Bind cadence, quantities, completeness, missingness, uncertainty, base/stress
+  mapping, dated-run-plan requirements, corpus hashes, and fail-closed evidence without adding a
+  collector, credential, signing, network, or order capability.
 - [ ] **G3.3** Keep a complete experiment registry, including failed runs. Apply a multiple-testing
   correction or deflated performance statistic when searching many variants.
 - [ ] **G3.4** Evaluate parameter neighborhoods, not only the best point. Reject isolated peaks.
@@ -346,6 +350,17 @@ and deterministic rederivation fail closed. The committed example is synthetic; 
 created, no broker was contacted, no execution was observed, and no protocol cost assumption was
 set. See `docs/research/G3.2c-EXECUTION-COST-OBSERVATION-CONTRACT.md` and
 `docs/evidence/G3.2c-2026-08-17.md`. G3.3 remains paused and G5 remains locked.
+
+**Increment record (2026-08-17):** `G3.2d: PASS — PROSPECTIVE SAMPLING PROTOCOL AND OFFLINE
+ANALYZER ONLY`. Protocol `rh-v2-cost-sampling-v1` freezes 30 complete UTC days, 15-minute cycles,
+four quantities, complete-cycle coverage gates, exact p50/p75/p90/p95/p99 measures, deterministic
+UTC-day block-bootstrap intervals, and p75/p95 candidate engine mappings. A separately authorized
+dated run plan must bind the protocol hash before collection. The analyzer verifies every G3.2c
+bundle, rejects structural inconsistencies, preserves failed-coverage evidence without emitting
+cost profiles, and content-addresses the summary plus corpus. No production run plan, collector,
+credential, request, observation, strategy result, or execution exists. See
+`docs/research/G3.2d-EXECUTION-COST-SAMPLING-PROTOCOL.md` and
+`docs/evidence/G3.2d-2026-08-17.md`. G3.3 remains paused and G5 remains locked.
 
 ### Minimum graduation standard
 

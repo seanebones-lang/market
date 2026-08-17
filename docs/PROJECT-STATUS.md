@@ -72,6 +72,8 @@ disclosure.
 - Synthetic design-assurance tooling with fail-closed variance and trade-dispersion checks
 - Offline Robinhood v2 cost-observation derivation with strict response schemas, per-endpoint
   receive times, separated spread/depth/fee measures, redaction, and immutable verification
+- Prospective 30-day route-cost sampling protocol and offline corpus analyzer with complete-cycle
+  coverage, fixed missingness rules, daily-block uncertainty, and content-addressed summaries
 
 These capabilities make the system a trustworthy research instrument. They do not make it a
 validated trading system.
@@ -89,10 +91,12 @@ G3.3 must not resume until a prospective protocol 2.0 is approved. That protocol
 7. the role of the existing strategy-unseen audit window and a future confirmatory window.
 
 G3.2c now supplies the offline schema, derivation, redaction, and immutable evidence mechanics for
-that input. Its committed example is entirely synthetic and does not establish a current cost.
+that input. G3.2d now freezes the future sampling cadence, quantities, coverage, quantiles,
+uncertainty, and base/stress mapping before any real values exist. Its tests remain entirely
+synthetic and do not establish a current cost. No dated production run plan exists.
 The highest-value empirical input remains a separately authorized read-only Robinhood sampler for
 best bid/ask, quantity-aware estimated prices, fee tier, fee ratio, and estimated fee. No broker
-credential was created or used and no broker endpoint was contacted during G3.2b or G3.2c.
+credential was created or used and no broker endpoint was contacted during G3.2b-G3.2d.
 
 ## Common commands
 

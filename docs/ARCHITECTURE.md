@@ -188,6 +188,13 @@ and buying power; and writes immutable SHA-256 evidence. It contains no HTTP, si
 order, or order-history mechanism. The future G5 client may produce fixtures that satisfy this
 contract only after that work is explicitly authorized.
 
+`research/cost_sampling.py` sits above that parser and remains offline. It binds a separately dated
+run plan to the frozen sampling-protocol hash, verifies a directory of observation bundles,
+requires complete cross-quantity cycles, measures schedule coverage, computes deterministic
+daily-block quantile intervals, maps admitted p75/p95 components into candidate engine inputs, and
+writes a content-addressed summary plus corpus. It cannot collect an observation or validate that
+a human authorization reference is genuine.
+
 ## Observability
 
 Mirroring AK47 lessons:
