@@ -27,6 +27,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m market fetch-candles
 ./market.sh build-dataset --start 2021-08-16 --end 2026-08-16 --gap-policy segment
 ./market.sh verify-dataset --manifest data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json
+./market.sh verify-research-splits --plan config/research/g3-ema-v1-splits.json
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 .venv/bin/python -m market freeze --reason "manual"
@@ -79,6 +80,7 @@ enable order submission.
 - `docs/BACKTESTING.md` — event timing, anti-look-ahead proof, and remaining engine blockers
 - `docs/RESEARCH-STATUS.md` — why current results cannot support promotion
 - `docs/research/G3.1-EMA-PREREGISTRATION.md` — binding hypothesis and rejection protocol for G3
+- `docs/research/G3.2-SPLIT-CONTRACT.md` — frozen walk-forward windows and final holdout
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan
 - `docs/RISK.md` — hard risk rails before any live mode

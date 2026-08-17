@@ -288,7 +288,7 @@ unlocked. G4-G10 and live money remain locked.
 
 - [x] **G3.1** Write the hypothesis, economic rationale, allowed inputs, parameter search space, and
   rejection criteria before running the study.
-- [ ] **G3.2** Freeze an untouched final holdout. Use anchored or rolling walk-forward train,
+- [x] **G3.2** Freeze an untouched final holdout. Use anchored or rolling walk-forward train,
   validation, and test windows for all model/parameter choices.
 - [ ] **G3.3** Keep a complete experiment registry, including failed runs. Apply a multiple-testing
   correction or deflated performance statistic when searching many variants.
@@ -310,6 +310,14 @@ multiplicity and parameter-neighborhood rules, risk budgets, and automatic rejec
 No G3 strategy result was generated. See `docs/research/G3.1-EMA-PREREGISTRATION.md` and
 `docs/evidence/G3.1-2026-08-17.md`. G3.2 is the only authorized next increment; the overall G3 gate
 and every later gate remain open/locked as applicable.
+
+**Increment record (2026-08-17):** `G3.2: PASS — SPLITS FROZEN, NO STRATEGY RUN`. The checksummed
+split plan reserves the final year (8,750 admitted bars across three gap-delimited segments) for a
+single G3.8 evaluation. Nine anchored expanding-training folds provide three-month validation and
+disjoint three-month tests, totaling 19,752 stitched OOS bars before the holdout. Exact range,
+count, segment, candle-fingerprint, warmup, flat-reset, and terminal-liquidation contracts now fail
+closed in code and tests. See `docs/research/G3.2-SPLIT-CONTRACT.md` and
+`docs/evidence/G3.2-2026-08-17.md`. G3.3 is the only authorized next increment.
 
 ### Minimum graduation standard
 

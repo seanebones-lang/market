@@ -1,0 +1,256 @@
+{
+  "boundary_semantics": "half_open_utc",
+  "dataset_bars": 43811,
+  "dataset_candle_fingerprint": "5abf974e0b8d532938a716a96ff715b4e53889d32fc1847d9fa0d9ca6c520bd4",
+  "dataset_end": "2026-08-16T00:00:00Z",
+  "dataset_id": "coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236",
+  "dataset_manifest_path": "data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json",
+  "dataset_normalized_sha256": "00c5f0b63bef92361fb6dfc1c227fe282ddcda9d1d7f03f5c9a449cb97dd65e2",
+  "dataset_start": "2021-08-16T00:00:00Z",
+  "development": {
+    "candle_fingerprint": "94f78e68a62e90bd2f3219966a668a7d9b6251b14736b290f6bca0e68fb73a3b",
+    "end": "2025-08-16T00:00:00Z",
+    "expected_bars": 35061,
+    "expected_segment_count": 2,
+    "start": "2021-08-16T00:00:00Z"
+  },
+  "final_holdout": {
+    "candle_fingerprint": "9f592ca8b481d8c34de2afca4f7ca6c5ae2ecfcd78a9aeb3a2ffbf277adb37b6",
+    "end": "2026-08-16T00:00:00Z",
+    "expected_bars": 8750,
+    "expected_segment_count": 3,
+    "start": "2025-08-16T00:00:00Z"
+  },
+  "folds": [
+    {
+      "fold_id": "wf-01",
+      "test": {
+        "candle_fingerprint": "2ccee853fe4ee1971a6122dfdcbc1193011e92f756dc95003d5f58d14b1c0851",
+        "end": "2023-08-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2023-05-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "8c4e57eda2e513d85978ccc90d6cdfd27a5c043b54382ed380cc65ad3a16ead8",
+        "end": "2023-02-16T00:00:00Z",
+        "expected_bars": 13176,
+        "expected_segment_count": 1,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "2629ad518c76c7091ead04e8883fb54d0e398781554c49fb6c914ad293079453",
+        "end": "2023-05-16T00:00:00Z",
+        "expected_bars": 2133,
+        "expected_segment_count": 2,
+        "start": "2023-02-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-02",
+      "test": {
+        "candle_fingerprint": "0faa530d590b6c8d52fe13ffe11ecc4539bbdfa215ae7f0893c891fd32568e14",
+        "end": "2023-11-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2023-08-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "921b52cee3138f9c2ea9e9a0a6ca8472669ae0cb8b418afc09c4de3883715a68",
+        "end": "2023-05-16T00:00:00Z",
+        "expected_bars": 15309,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "2ccee853fe4ee1971a6122dfdcbc1193011e92f756dc95003d5f58d14b1c0851",
+        "end": "2023-08-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2023-05-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-03",
+      "test": {
+        "candle_fingerprint": "bd93a74e2ec12ccc3d392b8633eaf66cee34f3f84c307737dff2694b2aa2413c",
+        "end": "2024-02-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2023-11-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "2d635074a4ce3057c67a303edd6cabc88f2c67ebaca676ca0007888213534c58",
+        "end": "2023-08-16T00:00:00Z",
+        "expected_bars": 17517,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "0faa530d590b6c8d52fe13ffe11ecc4539bbdfa215ae7f0893c891fd32568e14",
+        "end": "2023-11-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2023-08-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-04",
+      "test": {
+        "candle_fingerprint": "937196059dcb067f93aa61fb2cb9c617441cd53d970da494a39e2fde300e0f87",
+        "end": "2024-05-16T00:00:00Z",
+        "expected_bars": 2160,
+        "expected_segment_count": 1,
+        "start": "2024-02-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "d21a92e6335e9dbed56851d8d1bbc8d591a80a6cf3276dbffe26b8d3a50268ea",
+        "end": "2023-11-16T00:00:00Z",
+        "expected_bars": 19725,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "bd93a74e2ec12ccc3d392b8633eaf66cee34f3f84c307737dff2694b2aa2413c",
+        "end": "2024-02-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2023-11-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-05",
+      "test": {
+        "candle_fingerprint": "b5e250607465c2d0ed5e1dc78b326d176cc773917870852346ecee93271050e1",
+        "end": "2024-08-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2024-05-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "78d27f0209b4de43fab9646bc5fb4c0ff8449a9f51a7d643843177ef46d51b40",
+        "end": "2024-02-16T00:00:00Z",
+        "expected_bars": 21933,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "937196059dcb067f93aa61fb2cb9c617441cd53d970da494a39e2fde300e0f87",
+        "end": "2024-05-16T00:00:00Z",
+        "expected_bars": 2160,
+        "expected_segment_count": 1,
+        "start": "2024-02-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-06",
+      "test": {
+        "candle_fingerprint": "7b41881ab84b125df2aba49b52f4b1567d32b7ad721b13fcd26b115607175b6c",
+        "end": "2024-11-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2024-08-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "5d9cd7e4797cae81c5621bcfccc4a782c4fe0fb99e621d36f4986b962cfbce8c",
+        "end": "2024-05-16T00:00:00Z",
+        "expected_bars": 24093,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "b5e250607465c2d0ed5e1dc78b326d176cc773917870852346ecee93271050e1",
+        "end": "2024-08-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2024-05-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-07",
+      "test": {
+        "candle_fingerprint": "af6401ff300a52a2c0646af1c97691be28142dfaf834217895e73bff01302595",
+        "end": "2025-02-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2024-11-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "6106e994902bcd1965749d5b6b8fdf113082c27801ffdb94eadbc87d929420b2",
+        "end": "2024-08-16T00:00:00Z",
+        "expected_bars": 26301,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "7b41881ab84b125df2aba49b52f4b1567d32b7ad721b13fcd26b115607175b6c",
+        "end": "2024-11-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2024-08-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-08",
+      "test": {
+        "candle_fingerprint": "173c676095030ccbfc9805beaaa0a5a411e7c917f51bf22fe9006a3fade302fc",
+        "end": "2025-05-16T00:00:00Z",
+        "expected_bars": 2136,
+        "expected_segment_count": 1,
+        "start": "2025-02-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "0c9d436983e67fc1ebb51cace434e091ffc8b81e6d293338c9edccb520383d55",
+        "end": "2024-11-16T00:00:00Z",
+        "expected_bars": 28509,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "af6401ff300a52a2c0646af1c97691be28142dfaf834217895e73bff01302595",
+        "end": "2025-02-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2024-11-16T00:00:00Z"
+      }
+    },
+    {
+      "fold_id": "wf-09",
+      "test": {
+        "candle_fingerprint": "0fc74d48dff247ade288b9f0a35877f522e910d23885a4ebfe4d18f75e99c31c",
+        "end": "2025-08-16T00:00:00Z",
+        "expected_bars": 2208,
+        "expected_segment_count": 1,
+        "start": "2025-05-16T00:00:00Z"
+      },
+      "train": {
+        "candle_fingerprint": "2ec29fa45d6696175deeb08864f93d92b1db1a4e8af21f1beabc5db889139bdb",
+        "end": "2025-02-16T00:00:00Z",
+        "expected_bars": 30717,
+        "expected_segment_count": 2,
+        "start": "2021-08-16T00:00:00Z"
+      },
+      "validation": {
+        "candle_fingerprint": "173c676095030ccbfc9805beaaa0a5a411e7c917f51bf22fe9006a3fade302fc",
+        "end": "2025-05-16T00:00:00Z",
+        "expected_bars": 2136,
+        "expected_segment_count": 1,
+        "start": "2025-02-16T00:00:00Z"
+      }
+    }
+  ],
+  "frozen_at": "2026-08-17T00:00:00Z",
+  "gap_policy": "preserve_split_rewarm",
+  "holdout_access": "locked_until_g3_8",
+  "indicator_context_policy": "prior_admitted_bars_indicators_only",
+  "indicator_warmup_bars": 338,
+  "maximum_ema_period_bars": 336,
+  "plan_id": "g3-ema-v1-splits-v1",
+  "protocol_version": "1.0",
+  "schema_version": 1,
+  "scoring_end_state": "costed_terminal_liquidation",
+  "scoring_start_state": "flat_cash_reset",
+  "split_method": "anchored_expanding_train",
+  "study_id": "g3-ema-v1",
+  "timeframe": "1h"
+}

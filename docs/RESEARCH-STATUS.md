@@ -54,5 +54,8 @@ complete resolved config, seed contract, engine version, Git revision status, co
 trades, equity, and metrics. The complete G2 research-engine gate now passes. G3.1 protocol version
 1.0 now preregisters the EMA hypothesis, allowed information, 36-pair family, cost scenarios,
 primary hurdle, risk budget, and rejection rules. It contains no strategy result. G3.2 must freeze
-the walk-forward and untouched-holdout contract before any five-year parameter evaluation. No G3
+the walk-forward and untouched-holdout contract before any five-year parameter evaluation. That
+freeze is now complete: nine expanding-window folds are bound and the final year is locked for one
+G3.8 evaluation; exact window counts and fingerprints verify without running the strategy. G3.3
+must create the complete experiment registry before any registered parameter execution. No G3
 edge evidence exists yet, and profitability can never be guaranteed.

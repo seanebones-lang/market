@@ -94,6 +94,13 @@ def main(argv: list[str] | None = None) -> int:
     verify_dataset_p.add_argument("--manifest", required=True)
     verify_dataset_p.add_argument("--root", default=".")
 
+    verify_splits_p = sub.add_parser(
+        "verify-research-splits",
+        help="Verify a frozen research split plan against its checksummed dataset",
+    )
+    verify_splits_p.add_argument("--plan", required=True)
+    verify_splits_p.add_argument("--root", default=".")
+
     verify_backtest_p = sub.add_parser(
         "verify-backtest",
         help="Verify a checksummed, self-contained backtest report",
@@ -255,6 +262,23 @@ def main(argv: list[str] | None = None) -> int:
             f"strategy_segments={len(segments)} lengths={','.join(str(len(s)) for s in segments)}"
         )
         console.print(f"sha256={manifest.normalized_sha256}")
+        return 0
+
+    if args.cmd == "verify-research-splits":
+        from market.research.splits import verify_research_split_plan
+
+        verification = verify_research_split_plan(args.plan, repository_root=root)
+        plan = verification.plan
+        console.print(
+            f"[green]verified[/green] plan={plan.plan_id} dataset={plan.dataset_id} "
+            f"folds={verification.fold_count} stitched_test_bars={verification.stitched_test_bars}"
+        )
+        console.print(
+            f"development={plan.development.start.isoformat()}→{plan.development.end.isoformat()} "
+            f"holdout={plan.final_holdout.start.isoformat()}→{plan.final_holdout.end.isoformat()} "
+            f"holdout_access={plan.holdout_access}"
+        )
+        console.print(f"plan_sha256={verification.plan_sha256}")
         return 0
 
     if args.cmd == "verify-backtest":

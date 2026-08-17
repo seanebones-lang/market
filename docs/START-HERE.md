@@ -35,6 +35,7 @@ as the first intended broker adapter.
 .venv/bin/python -m market run --config config/live-dry.yaml
 .venv/bin/python -m market fetch-candles
 ./market.sh verify-dataset --manifest data/research/manifests/coinbase-btc-usd-1h-20210816T000000Z-20260816T000000Z-00c5f0b63bef9236.manifest.json
+./market.sh verify-research-splits --plan config/research/g3-ema-v1-splits.json
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 ```
@@ -44,11 +45,9 @@ Nothing graduates to `live` without passing G0-G8 in
 
 ## Immediate next human decisions
 
-1. Treat `docs/research/G3.1-EMA-PREREGISTRATION.md` as binding protocol version 1.0; do not run or
-   tune the five-year strategy before the split is frozen.
-2. Complete G3.2 by freezing chronological walk-forward windows and the one untouched final
-   holdout.
-3. Build the G3.3 experiment registry for every preregistered pair, including failures and
-   zero-trade results.
+1. Treat the G3.1 preregistration and G3.2 split plan as binding protocol version 1.0.
+2. Keep the final 2025-08-16 through 2026-08-16 holdout locked until G3.8.
+3. Complete G3.3 by creating the append-only experiment registry for every preregistered pair,
+   including failures and zero-trade results, before parameter execution.
 4. Reject or promote the EMA hypothesis only from the predeclared out-of-sample evidence.
 5. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.
