@@ -56,6 +56,12 @@ trades, equity, and metrics. The complete G2 research-engine gate now passes. G3
 primary hurdle, risk budget, and rejection rules. It contains no strategy result. G3.2 must freeze
 the walk-forward and untouched-holdout contract before any five-year parameter evaluation. That
 freeze is now complete: nine expanding-window folds are bound and the final year is locked for one
-G3.8 evaluation; exact window counts and fingerprints verify without running the strategy. G3.3
-must create the complete experiment registry before any registered parameter execution. No G3
-edge evidence exists yet, and profitability can never be guaranteed.
+G3.8 evaluation under protocol 1.0; exact window counts and fingerprints verify without running the
+strategy. A pre-results G3.2b design checkpoint then replaced an invalid synthetic calibration with
+a stationary variance-normalized model, reconciled its scoring to the production engine, and ran
+500 synthetic development-length replicates. No scenario passed even the representable subset of
+protocol criteria. Protocol 1.0 is therefore retired before execution as an inadequate discovery
+design—not rejected as an EMA result. No G1 or holdout strategy output was generated. G3.3 is
+paused until a prospective protocol 2.0 resolves observed/estimated costs, sample size, final-pair,
+resampling, multiplicity, and stress semantics. No G3 edge evidence exists yet, and profitability
+can never be guaranteed.

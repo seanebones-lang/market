@@ -290,6 +290,10 @@ unlocked. G4-G10 and live money remain locked.
   rejection criteria before running the study.
 - [x] **G3.2** Freeze an untouched final holdout. Use anchored or rolling walk-forward train,
   validation, and test windows for all model/parameter choices.
+- [x] **G3.2b** Before registry lock or parameter execution, verify with synthetic-only,
+  variance-normalized paths that the protocol has useful power under its joint cost, trade-count,
+  fold, concentration, uncertainty, and risk requirements. Retire rather than execute a design
+  that cannot pass this checkpoint.
 - [ ] **G3.3** Keep a complete experiment registry, including failed runs. Apply a multiple-testing
   correction or deflated performance statistic when searching many variants.
 - [ ] **G3.4** Evaluate parameter neighborhoods, not only the best point. Reject isolated peaks.
@@ -317,7 +321,17 @@ single G3.8 evaluation. Nine anchored expanding-training folds provide three-mon
 disjoint three-month tests, totaling 19,752 stitched OOS bars before the holdout. Exact range,
 count, segment, candle-fingerprint, warmup, flat-reset, and terminal-liquidation contracts now fail
 closed in code and tests. See `docs/research/G3.2-SPLIT-CONTRACT.md` and
-`docs/evidence/G3.2-2026-08-17.md`. G3.3 is the only authorized next increment.
+`docs/evidence/G3.2-2026-08-17.md`. At G3.2 completion, G3.3 was the authorized next increment; the
+G3.2b record below supersedes that next-step authorization before G3.3 began.
+
+**Increment record (2026-08-17):** `G3.2b: PASS — DESIGN CHECKPOINT; PROTOCOL 1.0 RETIRED BEFORE
+EXECUTION`. A dependency-free stationary latent-momentum model holds unconditional hourly return
+variance fixed, fails closed on calibration/trade-dispersion defects, and reconciles exact EMA,
+next-open, primary/doubled-cost, and terminal-liquidation outcomes to the production engine. Across
+500 synthetic development-length replicates, no scenario—including an extreme EMA-friendly
+detectability stress—passed even the representable subset of protocol criteria. No G1 strategy or
+holdout output was generated. See `docs/evidence/G3.2b-2026-08-17.md` and ADR 0003. G3.3 is paused
+until a complete prospective protocol 2.0 is approved; G3 and every later gate remain open/locked.
 
 ### Minimum graduation standard
 

@@ -1,0 +1,48 @@
+{
+  "bars": 35061,
+  "power_study": {
+    "base_seed": 31415,
+    "bootstrap_block_length": 5,
+    "bootstrap_resamples": 499,
+    "maximum_trade_sd_bps": 30000.0,
+    "simulations_per_scenario": 100
+  },
+  "scenarios": [
+    {
+      "annual_volatility": 0.6,
+      "innovation_degrees_of_freedom": 5.0,
+      "name": "null_no_predictable_momentum",
+      "signal_half_life_hours": 48.0,
+      "signal_variance_fraction": 0.0
+    },
+    {
+      "annual_volatility": 0.6,
+      "innovation_degrees_of_freedom": 5.0,
+      "name": "weak_short_momentum",
+      "signal_half_life_hours": 12.0,
+      "signal_variance_fraction": 0.0025
+    },
+    {
+      "annual_volatility": 0.6,
+      "innovation_degrees_of_freedom": 5.0,
+      "name": "moderate_short_momentum",
+      "signal_half_life_hours": 12.0,
+      "signal_variance_fraction": 0.01
+    },
+    {
+      "annual_volatility": 0.6,
+      "innovation_degrees_of_freedom": 5.0,
+      "name": "strong_short_momentum",
+      "signal_half_life_hours": 12.0,
+      "signal_variance_fraction": 0.03
+    },
+    {
+      "annual_volatility": 0.6,
+      "innovation_degrees_of_freedom": 5.0,
+      "name": "extreme_detectability_stress",
+      "signal_half_life_hours": 12.0,
+      "signal_variance_fraction": 0.07
+    }
+  ],
+  "schema_version": 1
+}
