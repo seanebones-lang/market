@@ -108,6 +108,26 @@ def main(argv: list[str] | None = None) -> int:
     verify_backtest_p.add_argument("--manifest", required=True)
     verify_backtest_p.add_argument("--root", default=".")
 
+    cost_p = sub.add_parser(
+        "derive-rh-v2-cost",
+        help="Derive a sanitized Robinhood v2 cost observation from an OFFLINE JSON fixture",
+        description=(
+            "OFFLINE ONLY: validate a local Robinhood v2 response fixture and derive a sanitized "
+            "execution-cost observation. This command has no broker transport."
+        ),
+    )
+    cost_p.add_argument("--fixture", required=True, help="Local official-response-shaped JSON")
+    cost_p.add_argument("--out-dir", default="data/research/execution-costs")
+    cost_p.add_argument("--root", default=".")
+
+    verify_cost_p = sub.add_parser(
+        "verify-rh-v2-cost",
+        help="Verify an immutable offline Robinhood v2 cost-observation bundle",
+        description="Verify an immutable OFFLINE Robinhood v2 cost-observation bundle.",
+    )
+    verify_cost_p.add_argument("--manifest", required=True)
+    verify_cost_p.add_argument("--root", default=".")
+
     bt_p = sub.add_parser(
         "backtest",
         help="Backtest slow_trend on REAL candle data (CSV cache and/or fresh Coinbase fetch)",
@@ -190,6 +210,53 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = Path(getattr(args, "root", ".")).resolve()
+
+    if args.cmd == "derive-rh-v2-cost":
+        from market.execution.robinhood.observations import (
+            load_offline_cost_fixture,
+            write_execution_cost_evidence,
+        )
+
+        fixture_path = Path(args.fixture)
+        if not fixture_path.is_absolute():
+            fixture_path = root / fixture_path
+        output_dir = Path(args.out_dir)
+        if not output_dir.is_absolute():
+            output_dir = root / output_dir
+        fixture = load_offline_cost_fixture(fixture_path)
+        cost_artifacts = write_execution_cost_evidence(output_dir, fixture)
+        cost_observation = cost_artifacts.observation
+        console.print(
+            f"[green]derived offline[/green] observation={cost_observation.observation_id} "
+            f"source={cost_observation.source_kind} symbol={cost_observation.symbol} "
+            f"quantity={cost_observation.asset_quantity}"
+        )
+        console.print(
+            f"full_spread_bps={cost_observation.quoted_full_spread_bps} "
+            f"fee_bps_per_side={cost_observation.account_fee_ratio * Decimal('10000')} "
+            "indicative_round_trip_cost_bps="
+            f"{cost_observation.indicative_round_trip_cost_bps}"
+        )
+        console.print("network_contact=false execution=false account_identifier_persisted=false")
+        console.print(f"manifest={cost_artifacts.manifest_path}")
+        return 0
+
+    if args.cmd == "verify-rh-v2-cost":
+        from market.execution.robinhood.observations import verify_execution_cost_evidence
+
+        manifest_path = Path(args.manifest)
+        if not manifest_path.is_absolute():
+            manifest_path = root / manifest_path
+        verified_cost_artifacts = verify_execution_cost_evidence(manifest_path)
+        verified_cost_observation = verified_cost_artifacts.observation
+        console.print(
+            "[green]verified offline[/green] "
+            f"observation={verified_cost_observation.observation_id} "
+            f"source={verified_cost_observation.source_kind} round_trip_bps="
+            f"{verified_cost_observation.indicative_round_trip_cost_bps}"
+        )
+        console.print("network_contact=false execution=false account_identifier_persisted=false")
+        return 0
 
     if args.cmd == "fetch-candles":
         from market.data.candles import fetch_coinbase_candles, save_candles_csv

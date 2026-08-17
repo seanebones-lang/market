@@ -64,4 +64,7 @@ protocol criteria. Protocol 1.0 is therefore retired before execution as an inad
 design—not rejected as an EMA result. No G1 or holdout strategy output was generated. G3.3 is
 paused until a prospective protocol 2.0 resolves observed/estimated costs, sample size, final-pair,
 resampling, multiplicity, and stress semantics. No G3 edge evidence exists yet, and profitability
-can never be guaranteed.
+can never be guaranteed. G3.2c now provides an offline-only, strategy-agnostic Robinhood v2 cost
+observation schema with separated spread, size impact, and fee fields plus immutable sanitized
+evidence. Its committed fixture is synthetic: no broker endpoint was contacted and it supplies no
+empirical cost or strategy evidence.

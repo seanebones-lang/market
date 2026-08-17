@@ -18,7 +18,9 @@ Prototype sim, paper, and backtest components exist. The saved research runs are
 invalid for strategy promotion. G0-G2 are complete. G3.1 and G3.2 preregistered the first EMA
 protocol and froze its splits without running the strategy; the synthetic-only G3.2b design check
 then retired protocol 1.0 before execution because its joint criteria had inadequate power. This is
-not evidence for or against EMA profitability. G3.3 is paused pending a prospective protocol 2.0.
+not evidence for or against EMA profitability. G3.2c adds an offline-only cost-observation contract
+and synthetic golden fixture; it did not contact Robinhood or measure a current cost. G3.3 is
+paused pending a prospective protocol 2.0.
 See `docs/PROJECT-STATUS.md`, `docs/RESEARCH-STATUS.md`, and the production-readiness roadmap.
 
 ```bash
@@ -36,6 +38,9 @@ env PYTHONPATH=src .venv/bin/python -m market.research.power_cli \
   --split-plan config/research/g3-ema-v1-splits.json \
   --study-definition config/research/g3-ema-v1-power-study.json \
   --output /tmp/g3-ema-v1-power-study.json
+./market.sh derive-rh-v2-cost \
+  --fixture tests/fixtures/robinhood/v2_cost_snapshot.json \
+  --out-dir /tmp/market-rh-v2-cost
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 .venv/bin/python -m market freeze --reason "manual"
@@ -92,6 +97,8 @@ enable order submission.
 - `docs/research/G3.1-EMA-PREREGISTRATION.md` — preserved protocol 1.0 EMA preregistration
 - `docs/research/G3.2-SPLIT-CONTRACT.md` — preserved protocol 1.0 split and holdout contract
 - `docs/evidence/G3.2b-2026-08-17.md` — corrected synthetic power evidence and design no-go
+- `docs/research/G3.2c-EXECUTION-COST-OBSERVATION-CONTRACT.md` — offline v2 cost schema and boundary
+- `docs/evidence/G3.2c-2026-08-17.md` — synthetic contract-test and safety evidence
 - `docs/decisions/0003-retire-g3-ema-protocol-v1-before-execution.md` — protocol 1.0 disposition
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan

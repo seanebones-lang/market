@@ -40,6 +40,9 @@ env PYTHONPATH=src .venv/bin/python -m market.research.power_cli \
   --split-plan config/research/g3-ema-v1-splits.json \
   --study-definition config/research/g3-ema-v1-power-study.json \
   --output /tmp/g3-ema-v1-power-study.json
+./market.sh derive-rh-v2-cost \
+  --fixture tests/fixtures/robinhood/v2_cost_snapshot.json \
+  --out-dir /tmp/market-rh-v2-cost
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 ```
@@ -58,4 +61,6 @@ Nothing graduates to `live` without passing G0-G8 in
 4. Treat the final 2025-08-16 through 2026-08-16 window as strategy-unseen but market-path-known;
    it may not be relabeled as an untouched confirmatory holdout for protocol 2.0.
 5. Keep the registry/evidence layer strategy-agnostic so the next hypothesis need not be an EMA.
-6. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.
+6. Treat G3.2c as an offline schema only. Its fixture is synthetic and does not set a cost
+   assumption; a real sampler still requires separate authorization.
+7. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.

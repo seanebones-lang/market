@@ -1,0 +1,86 @@
+{
+  "accounts_response": {
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "account_number": "synthetic-account-must-be-redacted",
+        "account_type": "individual",
+        "buying_power": "1000.00",
+        "buying_power_currency": "USD",
+        "fee_tier_status": {
+          "fee_ratio": "0.0095",
+          "next_fee_tier_ratio": "0.0075",
+          "next_fee_tier_threshold": "50000",
+          "thirty_day_volume": "0"
+        },
+        "is_api_tradable": true,
+        "status": "active"
+      }
+    ]
+  },
+  "best_bid_ask_response": {
+    "results": [
+      {
+        "ask": "63010",
+        "bid": "62990",
+        "symbol": "BTC-USD"
+      }
+    ]
+  },
+  "estimated_price_response": {
+    "results": [
+      {
+        "ask": "63020",
+        "bid": "62970",
+        "est_fee": "0.598215",
+        "est_total_cost": "0",
+        "est_total_credit": "62.371785",
+        "fee_ratio": "0.0095",
+        "quantity": "0.001",
+        "side": "bid",
+        "symbol": "BTC-USD",
+        "timestamp": "2026-08-17T12:00:00Z"
+      },
+      {
+        "ask": "63030",
+        "bid": "62980",
+        "est_fee": "0.598785",
+        "est_total_cost": "63.628785",
+        "est_total_credit": "0",
+        "fee_ratio": "0.0095",
+        "quantity": "0.001",
+        "side": "ask",
+        "symbol": "BTC-USD",
+        "timestamp": "2026-08-17T12:00:00Z"
+      }
+    ]
+  },
+  "endpoint_receive_times": {
+    "accounts": "2026-08-17T12:00:01Z",
+    "best_bid_ask": "2026-08-17T12:00:03Z",
+    "estimated_price": "2026-08-17T12:00:05Z",
+    "trading_pairs": "2026-08-17T12:00:02Z"
+  },
+  "requested_quantity": "0.001",
+  "requested_symbol": "BTC-USD",
+  "schema_version": 1,
+  "source_kind": "synthetic_fixture",
+  "trading_pairs_response": {
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "asset_code": "BTC",
+        "asset_increment": "0.00000001",
+        "is_api_tradable": true,
+        "max_order_size": "100",
+        "min_order_amount": "1",
+        "quote_code": "USD",
+        "quote_increment": "0.01",
+        "status": "tradable",
+        "symbol": "BTC-USD"
+      }
+    ]
+  }
+}

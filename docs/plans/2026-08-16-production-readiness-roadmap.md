@@ -294,6 +294,10 @@ unlocked. G4-G10 and live money remain locked.
   variance-normalized paths that the protocol has useful power under its joint cost, trade-count,
   fold, concentration, uncertainty, and risk requirements. Retire rather than execute a design
   that cannot pass this checkpoint.
+- [x] **G3.2c** Define and test an offline, strategy-agnostic v2 execution-cost observation
+  contract before any broker sampler is authorized. Preserve spread, size impact, fee, total cost,
+  and total credit separately; redact account fields; write immutable evidence; and do not add
+  credentials, signing, HTTP transport, orders, or broker contact.
 - [ ] **G3.3** Keep a complete experiment registry, including failed runs. Apply a multiple-testing
   correction or deflated performance statistic when searching many variants.
 - [ ] **G3.4** Evaluate parameter neighborhoods, not only the best point. Reject isolated peaks.
@@ -332,6 +336,16 @@ next-open, primary/doubled-cost, and terminal-liquidation outcomes to the produc
 detectability stress—passed even the representable subset of protocol criteria. No G1 strategy or
 holdout output was generated. See `docs/evidence/G3.2b-2026-08-17.md` and ADR 0003. G3.3 is paused
 until a complete prospective protocol 2.0 is approved; G3 and every later gate remain open/locked.
+
+**Increment record (2026-08-17):** `G3.2c: PASS — OFFLINE OBSERVATION CONTRACT ONLY`. A strict
+Robinhood v2 schema now derives separate displayed-spread, quantity-impact, fee, total-cost/credit,
+and midpoint-relative cost fields from a local official-response-shaped fixture. Four GET resource
+identities are allowlisted descriptively, but no HTTP client exists. Per-endpoint receive times,
+staleness, tradability, size constraints, fee consistency, arithmetic, redaction, immutable hashes,
+and deterministic rederivation fail closed. The committed example is synthetic; no credential was
+created, no broker was contacted, no execution was observed, and no protocol cost assumption was
+set. See `docs/research/G3.2c-EXECUTION-COST-OBSERVATION-CONTRACT.md` and
+`docs/evidence/G3.2c-2026-08-17.md`. G3.3 remains paused and G5 remains locked.
 
 ### Minimum graduation standard
 

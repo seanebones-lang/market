@@ -70,6 +70,8 @@ disclosure.
 - Descriptive risk/performance statistics and benchmark-relative alpha estimates
 - Immutable schema-11 evidence bundles with input/config/source checksums
 - Synthetic design-assurance tooling with fail-closed variance and trade-dispersion checks
+- Offline Robinhood v2 cost-observation derivation with strict response schemas, per-endpoint
+  receive times, separated spread/depth/fee measures, redaction, and immutable verification
 
 These capabilities make the system a trustworthy research instrument. They do not make it a
 validated trading system.
@@ -86,9 +88,11 @@ G3.3 must not resume until a prospective protocol 2.0 is approved. That protocol
 6. a strategy-agnostic experiment/evidence schema; and
 7. the role of the existing strategy-unseen audit window and a future confirmatory window.
 
-The highest-value empirical input is a separately authorized read-only Robinhood sampler for best
-bid/ask, quantity-aware estimated prices, fee tier, fee ratio, and estimated fee. No broker
-credential was created or used and no broker endpoint was contacted during G3.2b.
+G3.2c now supplies the offline schema, derivation, redaction, and immutable evidence mechanics for
+that input. Its committed example is entirely synthetic and does not establish a current cost.
+The highest-value empirical input remains a separately authorized read-only Robinhood sampler for
+best bid/ask, quantity-aware estimated prices, fee tier, fee ratio, and estimated fee. No broker
+credential was created or used and no broker endpoint was contacted during G3.2b or G3.2c.
 
 ## Common commands
 
@@ -102,6 +106,9 @@ env PYTHONPATH=src .venv/bin/python -m market.research.power_cli \
   --split-plan config/research/g3-ema-v1-splits.json \
   --study-definition config/research/g3-ema-v1-power-study.json \
   --output /tmp/g3-ema-v1-power-study.json
+./market.sh derive-rh-v2-cost \
+  --fixture tests/fixtures/robinhood/v2_cost_snapshot.json \
+  --out-dir /tmp/market-rh-v2-cost
 ./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 ```
 

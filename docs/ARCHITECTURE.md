@@ -179,6 +179,15 @@ broker:
 - Never let strategy code import the adapter.
 - Live submission remains disabled until G0-G8 pass and the CTO/account owner approve G9.
 
+### Offline v2 cost-observation boundary
+
+`execution/robinhood/observations.py` is a research parser, not a broker client. It accepts a local
+strict-schema fixture for accounts, trading pairs, best bid/ask, and estimated price; derives
+separate displayed-spread, size-impact, fee, and all-in hypothetical costs; redacts account number
+and buying power; and writes immutable SHA-256 evidence. It contains no HTTP, signing, credential,
+order, or order-history mechanism. The future G5 client may produce fixtures that satisfy this
+contract only after that work is explicitly authorized.
+
 ## Observability
 
 Mirroring AK47 lessons:
