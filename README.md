@@ -21,9 +21,11 @@ then retired protocol 1.0 before execution because its joint criteria had inadeq
 not evidence for or against EMA profitability. G3.2c adds an offline-only cost-observation contract
 and synthetic golden fixture. G3.2d prospectively freezes the 30-day sampling and offline-analysis
 rules. Under an identifier-free, read-only authorization, G3.2e now implements the Keychain-backed,
-GET-only collector needed to run one sanitized preflight. No credential has been registered, no
-endpoint has been contacted, no empirical cost exists, and no dated collection run has started.
-G3.3 is paused pending a prospective protocol 2.0.
+GET-only collector needed to run one sanitized preflight. A least-privilege credential is now
+registered and locally verified, but the live preflight fails closed because Robinhood's
+best-price row has repeatedly reported a buy `ask` below its sell `bid`, contrary to Robinhood's
+published v2 field definitions. No cost evidence was written, no empirical cost is admitted, and
+no dated collection run has started. G3.3 is paused pending a prospective protocol 2.0.
 See `docs/PROJECT-STATUS.md`, `docs/RESEARCH-STATUS.md`, and the production-readiness roadmap.
 
 ```bash

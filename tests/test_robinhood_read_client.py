@@ -252,6 +252,71 @@ def test_schema_error_omits_account_identifier_and_response_values() -> None:
     http.close()
 
 
+def test_best_bid_ask_admits_only_the_known_live_timestamp_compatibility_field() -> None:
+    fixture = _fixture()
+    payload = fixture["best_bid_ask_response"]
+    assert isinstance(payload, dict)
+    results = payload["results"]
+    assert isinstance(results, list)
+    row = results[0]
+    assert isinstance(row, dict)
+    row["timestamp"] = "2026-08-17T12:00:00Z"
+
+    http = httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)),
+        trust_env=False,
+    )
+    client = RobinhoodV2ReadClient(_credentials(), http_client=http, now=lambda: FIXED_NOW)
+    captured = client.get_best_bid_ask("BTC-USD")
+
+    assert captured.response.results[0].timestamp == datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
+    assert "timestamp" not in captured.response.model_dump(mode="json")["results"][0]
+    http.close()
+
+    row["unexpected_live_field"] = "still-forbidden"
+    http = httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)),
+        trust_env=False,
+    )
+    client = RobinhoodV2ReadClient(_credentials(), http_client=http, now=lambda: FIXED_NOW)
+    with pytest.raises(RobinhoodReadSchemaError, match="extra_forbidden"):
+        client.get_best_bid_ask("BTC-USD")
+    http.close()
+
+    del row["unexpected_live_field"]
+    row["timestamp"] = "2026-08-17T12:00:00"
+    http = httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)),
+        trust_env=False,
+    )
+    client = RobinhoodV2ReadClient(_credentials(), http_client=http, now=lambda: FIXED_NOW)
+    with pytest.raises(RobinhoodReadSchemaError, match="timestamp:timezone_naive"):
+        client.get_best_bid_ask("BTC-USD")
+    http.close()
+
+    row["timestamp"] = "2026-08-17T07:00:00-05:00"
+    http = httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)),
+        trust_env=False,
+    )
+    client = RobinhoodV2ReadClient(_credentials(), http_client=http, now=lambda: FIXED_NOW)
+    with pytest.raises(RobinhoodReadSchemaError, match="timestamp:timezone_non_utc_offset"):
+        client.get_best_bid_ask("BTC-USD")
+    http.close()
+
+    row["timestamp"] = "2026-08-17T12:00:00Z"
+    row["ask"] = "62980"
+    row["bid"] = "62990"
+    http = httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)),
+        trust_env=False,
+    )
+    client = RobinhoodV2ReadClient(_credentials(), http_client=http, now=lambda: FIXED_NOW)
+    with pytest.raises(RobinhoodReadSchemaError, match="results.0:best_price_market_crossed"):
+        client.get_best_bid_ask("BTC-USD")
+    http.close()
+
+
 def test_redirect_and_oversized_responses_fail_closed() -> None:
     responses = iter(
         (

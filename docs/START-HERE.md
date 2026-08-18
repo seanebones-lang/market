@@ -68,5 +68,7 @@ Nothing graduates to `live` without passing G0-G8 in
 8. G3.2e has a narrow, recorded exception for one macOS-Keychain-backed credential with only Read
    crypto accounts, Read crypto products, and Read crypto quotes. Follow its contract stage by
    stage; do not enable order actions, holdings/order-history reads, or live capital.
-9. Implementation readiness is not permission to skip the action-scope check or sanitized
-   preflight. Do not start the 30-day window until both pass and a future run plan is frozen.
+9. The action-scope and local credential checks pass, but the live preflight is blocked by a
+   best-price row whose buy ask is below its sell bid. Do not swap labels, relax the invariant, or
+   start the 30-day window until the contradiction is resolved, a fresh sanitized preflight passes,
+   and a future run plan is frozen.

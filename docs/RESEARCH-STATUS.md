@@ -72,6 +72,9 @@ four-quantity sampling and offline-analysis protocol, including coverage, missin
 daily-block uncertainty, and candidate cost-profile mapping. No dated production run plan or real
 observation exists, so this adds design readiness rather than empirical cost or strategy evidence.
 G3.2e now implements the explicitly authorized Keychain-backed, BTC-USD-only, four-resource GET
-client and one-cycle collector. Its offline tests do not contact Robinhood. Credential registration,
-visible read-action confirmation, the sanitized preflight, and a future dated run plan remain
-separate stopping points. Until the preflight succeeds, no account-observed cost exists.
+client and one-cycle collector. The credential is registered with only the three authorized read
+actions and passes the local signing-key check. Authenticated preflight attempts stopped before
+evidence writes because the live best-price row first added a known timestamp field and then
+repeatedly violated the published sell-bid/buy-ask ordering invariant. The timestamp compatibility
+field is now strictly validated and excluded from derivation; the price-ordering rule was not
+relaxed. Until a preflight succeeds, no account-observed cost exists and no dated run may start.

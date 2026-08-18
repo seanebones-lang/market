@@ -373,15 +373,20 @@ resources; one sanitized preflight; and the frozen 30-day G3.2d collection. It d
 orders, order permissions, transfers, holdings changes, live capital, or the remaining G5 scope.
 See `docs/authorizations/2026-08-17-g3.2e-robinhood-read-only.md`.
 
-**Increment record (2026-08-17):** `G3.2e: IMPLEMENTATION READY — CREDENTIAL AND NETWORK PREFLIGHT
-PENDING`. The repository now contains a macOS-Keychain-backed Ed25519 lifecycle, exact official
+**Increment record (2026-08-17):** `G3.2e: CREDENTIAL READY — LIVE PREFLIGHT BLOCKED ON BEST-PRICE
+COHERENCE`. The repository contains a macOS-Keychain-backed Ed25519 lifecycle, exact official
 signature-vector test, fixed-origin BTC-USD-only client for the four G3.2c GET resources, bounded
 safe-read retries, sanitized schema/transport errors, multi-quantity preflight, and one-slot
-collector with claim-before-contact and no-retry/backfill behavior. All broker responses remain
-synthetic in this checkpoint: no key was generated, no credential was registered, no endpoint was
-called, and no empirical cost exists. See `docs/research/G3.2e-READ-ONLY-COLLECTOR-CONTRACT.md` and
-`docs/evidence/G3.2e-2026-08-17.md`. G3.2e remains open until the scoped action list and sanitized
-preflight pass; G3.3 stays paused and the broader G5 gate stays locked.
+collector with claim-before-contact and no-retry/backfill behavior. A replacement credential was
+visibly restricted to the three authorized read actions and passes the local pairing check.
+Authenticated preflight attempts wrote no evidence: the first exposed only an undocumented
+best-price `timestamp` field, which is now validated and excluded from all derivations; subsequent
+attempts reported buy `ask < bid` sell and failed the retained market-coherence invariant.
+Robinhood's official v2 schema defines bid as the sell-order price and ask as the buy-order price,
+so fields were not swapped and the invariant was not relaxed. See
+`docs/research/G3.2e-READ-ONLY-COLLECTOR-CONTRACT.md` and
+`docs/evidence/G3.2e-2026-08-17.md`. G3.2e remains open until the venue/API contradiction is
+resolved and a sanitized preflight passes; G3.3 stays paused and the broader G5 gate stays locked.
 
 ### Minimum graduation standard
 

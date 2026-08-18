@@ -27,7 +27,7 @@ guarantee future returns.
 | G1 | Complete | Five-year hourly BTC dataset is immutable, checksummed, and gap-segmented |
 | G2 | Complete | Backtest timing, costs, accounting, lifecycle, benchmarks, statistics, tests, and reproducibility pass |
 | G3 | Open | No strategy edge exists in evidence; EMA protocol 1.0 was retired before execution at G3.2b |
-| G3.2e exception | Implementation ready, preflight pending | Explicitly authorized account/product/quote GETs only; no order or capital authority |
+| G3.2e exception | Credential ready; live preflight blocked | Authorized account/product/quote GETs only; live best-price row fails the published bid/ask ordering invariant; no order or capital authority |
 | G4-G10 | Locked | Paper-runtime graduation, general broker execution, and all capital stages remain unauthorized |
 
 The controlling details are in
@@ -98,11 +98,13 @@ G3.3 must not resume until a prospective protocol 2.0 is approved. That protocol
 G3.2c supplies the offline schema, derivation, redaction, and immutable evidence mechanics for that
 input. G3.2d freezes the future sampling cadence, quantities, coverage, quantiles, uncertainty, and
 base/stress mapping before any real values exist. G3.2e now implements the separately authorized
-read-only client and collector. Its implementation tests remain synthetic and do not establish a
-current cost. No credential has been registered, no broker endpoint has been contacted, and no
-dated production run plan exists at this checkpoint. The next operation is a locally prepared
-Keychain key, account-owner confirmation of the exact three read actions, and one sanitized
-preflight—not strategy evaluation or live execution.
+read-only client and collector. A least-privilege credential is registered in macOS Keychain and
+the local signing-key check passes. The live preflight authenticated but failed closed before any
+evidence write: after admitting one validated, non-derived timestamp compatibility field, repeated
+best-price responses reported buy `ask < bid` sell, contrary to Robinhood's official v2 component
+definitions. No price value was logged, no empirical cost is admitted, and no dated production run
+plan exists. The next operation is resolution of that venue/API data-quality contradiction followed
+by a fresh sanitized preflight—not a relaxed invariant, strategy evaluation, or live execution.
 
 ## Common commands
 

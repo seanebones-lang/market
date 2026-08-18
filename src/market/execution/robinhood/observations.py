@@ -142,11 +142,22 @@ class BestBidAskResult(BaseModel):
     symbol: str
     bid: Decimal = Field(gt=0)
     ask: Decimal = Field(gt=0)
+    # Robinhood's documented v2 response sample contains only symbol, bid, and ask, but the
+    # 2026-08-17 live preflight returned an additional UTC timestamp. It is validated as a known
+    # compatibility field and deliberately excluded from sanitized evidence and all derivations.
+    timestamp: datetime | None = Field(default=None, exclude=True)
 
     @field_validator("symbol")
     @classmethod
     def _symbol(cls, value: str) -> str:
         return _validate_symbol(value)
+
+    @field_validator("timestamp")
+    @classmethod
+    def _timestamp(cls, value: datetime | None, info: object) -> datetime | None:
+        if value is None:
+            return None
+        return _utc_validator(value, info)
 
     @model_validator(mode="after")
     def _ordered_market(self) -> Self:

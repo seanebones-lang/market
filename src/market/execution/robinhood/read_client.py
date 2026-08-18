@@ -119,7 +119,22 @@ def _safe_schema_error(endpoint: RobinhoodV2ReadEndpoint, exc: ValidationError) 
     labels: list[str] = []
     for item in exc.errors(include_input=False, include_url=False)[:8]:
         location = ".".join(str(part) for part in item.get("loc", ())) or "root"
-        labels.append(f"{location}:{item.get('type', 'invalid')}")
+        error_type = str(item.get("type", "invalid"))
+        if error_type == "value_error":
+            context = item.get("ctx")
+            context_error = context.get("error") if isinstance(context, dict) else None
+            safe_message = str(context_error)
+            if safe_message.endswith("must be timezone-aware UTC"):
+                error_type = "timezone_naive"
+            elif safe_message.endswith("must use UTC"):
+                error_type = "timezone_non_utc_offset"
+            elif safe_message.endswith("best ask must be greater than or equal to best bid"):
+                error_type = "best_price_market_crossed"
+            elif safe_message.endswith(
+                "estimated ask must be greater than or equal to estimated bid"
+            ):
+                error_type = "estimated_price_market_crossed"
+        labels.append(f"{location}:{error_type}")
     detail = "|".join(labels) if labels else "invalid"
     return f"{endpoint.name.lower()}_schema_invalid:{detail}"
 
