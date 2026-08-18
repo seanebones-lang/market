@@ -54,6 +54,48 @@ def test_robinhood_cost_cli_is_explicitly_offline(
     assert "credential" not in help_text
 
 
+def test_robinhood_credential_cli_never_accepts_secret_arguments(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    for command in (
+        "prepare-rh-readonly-key",
+        "show-rh-readonly-public-key",
+        "complete-rh-readonly-credential",
+        "check-rh-readonly-credential",
+    ):
+        with pytest.raises(SystemExit) as raised:
+            main([command, "--help"])
+        assert raised.value.code == 0
+        help_text = capsys.readouterr().out.lower()
+        assert "--credential-label" in help_text
+        assert "--api-key" not in help_text
+        assert "--private-key" not in help_text
+        assert "--secret" not in help_text
+
+
+def test_robinhood_network_commands_are_explicitly_read_only_and_scoped(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main(["preflight-rh-v2-cost", "--help"])
+    assert raised.value.code == 0
+    preflight_help = capsys.readouterr().out.lower()
+    assert "network reads" in preflight_help
+    assert "four g3.2c get resources" in preflight_help
+    assert "no orders" in preflight_help
+    assert "--authorization-reference" in preflight_help
+    assert "--account-number" not in preflight_help
+
+    with pytest.raises(SystemExit) as raised:
+        main(["capture-rh-v2-cost-cycle", "--help"])
+    assert raised.value.code == 0
+    capture_help = capsys.readouterr().out.lower()
+    assert "network reads" in capture_help
+    assert "one currently due" in capture_help
+    assert "no order endpoint" in capture_help
+    assert "--account-number" not in capture_help
+
+
 def test_robinhood_cost_cli_derives_and_verifies_bundle(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

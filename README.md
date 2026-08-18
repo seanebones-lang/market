@@ -20,8 +20,10 @@ protocol and froze its splits without running the strategy; the synthetic-only G
 then retired protocol 1.0 before execution because its joint criteria had inadequate power. This is
 not evidence for or against EMA profitability. G3.2c adds an offline-only cost-observation contract
 and synthetic golden fixture. G3.2d prospectively freezes the 30-day sampling and offline-analysis
-rules. Neither increment contacted Robinhood or measured a current cost, and no dated collection
-run is authorized. G3.3 is paused pending a prospective protocol 2.0.
+rules. Under an identifier-free, read-only authorization, G3.2e now implements the Keychain-backed,
+GET-only collector needed to run one sanitized preflight. No credential has been registered, no
+endpoint has been contacted, no empirical cost exists, and no dated collection run has started.
+G3.3 is paused pending a prospective protocol 2.0.
 See `docs/PROJECT-STATUS.md`, `docs/RESEARCH-STATUS.md`, and the production-readiness roadmap.
 
 ```bash
@@ -42,6 +44,8 @@ env PYTHONPATH=src .venv/bin/python -m market.research.power_cli \
 ./market.sh derive-rh-v2-cost \
   --fixture tests/fixtures/robinhood/v2_cost_snapshot.json \
   --out-dir /tmp/market-rh-v2-cost
+# Read-only credential and network commands are documented in the G3.2e contract. Do not run them
+# until the current authorization, Keychain, action-scope, and preflight checks are understood.
 .venv/bin/python -m market backtest --csv data/cache/btc_usd_1h.csv
 ./market.sh verify-backtest --manifest data/backtests/RUN_ID/manifest.json
 .venv/bin/python -m market freeze --reason "manual"
@@ -102,6 +106,9 @@ enable order submission.
 - `docs/evidence/G3.2c-2026-08-17.md` — synthetic contract-test and safety evidence
 - `docs/research/G3.2d-EXECUTION-COST-SAMPLING-PROTOCOL.md` — prospective 30-day cost-study design
 - `docs/evidence/G3.2d-2026-08-17.md` — offline analyzer and failure-path evidence
+- `docs/research/G3.2e-READ-ONLY-COLLECTOR-CONTRACT.md` — authorized GET-only client and preflight
+- `docs/evidence/G3.2e-2026-08-17.md` — offline signing, transport, collector, and safety evidence
+- `docs/authorizations/2026-08-17-g3.2e-robinhood-read-only.md` — scoped, identifier-free authority
 - `docs/decisions/0003-retire-g3-ema-protocol-v1-before-execution.md` — protocol 1.0 disposition
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan

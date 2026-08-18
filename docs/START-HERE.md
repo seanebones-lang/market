@@ -62,7 +62,11 @@ Nothing graduates to `live` without passing G0-G8 in
    it may not be relabeled as an untouched confirmatory holdout for protocol 2.0.
 5. Keep the registry/evidence layer strategy-agnostic so the next hypothesis need not be an EMA.
 6. Treat G3.2c as an offline schema only. Its fixture is synthetic and does not set a cost
-   assumption; a real sampler still requires separate authorization.
-7. G3.2d freezes how a future 30-day sample would run and be analyzed, but no dated production run
-   plan exists. Do not invent an authorization reference or begin collection from the template.
-8. Do not begin G4 or create a Robinhood credential until the controlling roadmap unlocks it.
+   assumption.
+7. G3.2d freezes how a future 30-day sample must run and be analyzed. No dated production run plan
+   exists yet.
+8. G3.2e has a narrow, recorded exception for one macOS-Keychain-backed credential with only Read
+   crypto accounts, Read crypto products, and Read crypto quotes. Follow its contract stage by
+   stage; do not enable order actions, holdings/order-history reads, or live capital.
+9. Implementation readiness is not permission to skip the action-scope check or sanitized
+   preflight. Do not start the 30-day window until both pass and a future run plan is frozen.

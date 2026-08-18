@@ -174,7 +174,8 @@ broker:
 - Use only the official US Crypto Trading API under `execution/robinhood/`.
 - Authenticate with action-scoped API credentials and Ed25519 request signatures.
 - Store the private key outside the repository, logs, ledger, and database.
-- Start with read actions only: accounts, holdings, products, quotes, and orders.
+- The G3.2e cost-study exception uses only accounts, products, and quotes. Holdings and order
+  history remain outside that measurement path.
 - Target v2 where fee-tier-aware account and estimated-price data is required.
 - Never let strategy code import the adapter.
 - Live submission remains disabled until G0-G8 pass and the CTO/account owner approve G9.
@@ -194,6 +195,20 @@ requires complete cross-quantity cycles, measures schedule coverage, computes de
 daily-block quantile intervals, maps admitted p75/p95 components into candidate engine inputs, and
 writes a content-addressed summary plus corpus. It cannot collect an observation or validate that
 a human authorization reference is genuine.
+
+### Authorized G3.2e read-only measurement boundary
+
+`execution/robinhood/auth.py` generates Ed25519 signing seeds and stores the private seed plus
+Robinhood-issued API key through the macOS Keychain backend. Secrets are not accepted through the
+environment, command-line arguments, repository, or files. `execution/robinhood/read_client.py`
+fixes the origin, exposes only four strict v2 GET operations, rejects redirects and environment
+proxies, bounds safe-read retries, and sanitizes all response failures.
+
+`research/cost_collector.py` combines the four reads into one shared multi-quantity snapshot,
+validates all quantities before persistence, and delegates redacted immutable evidence to the
+G3.2c writer. Scheduled attempts atomically claim a slot before network contact and cannot be
+retried or backfilled. These modules do not alter `RobinhoodBroker`; live submission remains
+compile-time disabled and no order transport is reachable from the read-only client.
 
 ## Observability
 

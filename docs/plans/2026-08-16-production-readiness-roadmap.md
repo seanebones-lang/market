@@ -302,6 +302,10 @@ unlocked. G4-G10 and live money remain locked.
   observations. Bind cadence, quantities, completeness, missingness, uncertainty, base/stress
   mapping, dated-run-plan requirements, corpus hashes, and fail-closed evidence without adding a
   collector, credential, signing, network, or order capability.
+- [ ] **G3.2e** Under authorization `AUTH-G3.2E-RH-READONLY-2026-08-17`, implement and validate the
+  minimum read-only Robinhood v2 measurement path needed by G3.2d. Keep secrets in macOS Keychain,
+  allow only account/product/quote GETs, preserve the compile-time order lock, pass an explicitly
+  invoked sanitized preflight, and freeze a future dated run plan before collection.
 - [ ] **G3.3** Keep a complete experiment registry, including failed runs. Apply a multiple-testing
   correction or deflated performance statistic when searching many variants.
 - [ ] **G3.4** Evaluate parameter neighborhoods, not only the best point. Reject isolated peaks.
@@ -361,6 +365,23 @@ cost profiles, and content-addresses the summary plus corpus. No production run 
 credential, request, observation, strategy result, or execution exists. See
 `docs/research/G3.2d-EXECUTION-COST-SAMPLING-PROTOCOL.md` and
 `docs/evidence/G3.2d-2026-08-17.md`. G3.3 remains paused and G5 remains locked.
+
+**Authorization record (2026-08-17):** The account owner authorized the narrow G3.2e read-only
+measurement exception recorded as `AUTH-G3.2E-RH-READONLY-2026-08-17`. It permits a credential with
+only Read crypto accounts, Read crypto products, and Read crypto quotes; the four G3.2c v2 GET
+resources; one sanitized preflight; and the frozen 30-day G3.2d collection. It does not authorize
+orders, order permissions, transfers, holdings changes, live capital, or the remaining G5 scope.
+See `docs/authorizations/2026-08-17-g3.2e-robinhood-read-only.md`.
+
+**Increment record (2026-08-17):** `G3.2e: IMPLEMENTATION READY — CREDENTIAL AND NETWORK PREFLIGHT
+PENDING`. The repository now contains a macOS-Keychain-backed Ed25519 lifecycle, exact official
+signature-vector test, fixed-origin BTC-USD-only client for the four G3.2c GET resources, bounded
+safe-read retries, sanitized schema/transport errors, multi-quantity preflight, and one-slot
+collector with claim-before-contact and no-retry/backfill behavior. All broker responses remain
+synthetic in this checkpoint: no key was generated, no credential was registered, no endpoint was
+called, and no empirical cost exists. See `docs/research/G3.2e-READ-ONLY-COLLECTOR-CONTRACT.md` and
+`docs/evidence/G3.2e-2026-08-17.md`. G3.2e remains open until the scoped action list and sanitized
+preflight pass; G3.3 stays paused and the broader G5 gate stays locked.
 
 ### Minimum graduation standard
 
@@ -646,5 +667,8 @@ Start with **G3 only**, in this order:
 4. Run base/doubled-cost and regime analyses without tuning on the holdout.
 5. Record a signed go/no-go research memo.
 
-Do not begin G4 or create any Robinhood credential while G3 is unresolved. Never create a
-Robinhood credential with order permissions until G0-G8 have passed and G9 is explicitly approved.
+Do not begin G4 while G3 is unresolved. The only credential exception is the identifier-free
+G3.2e authorization record `AUTH-G3.2E-RH-READONLY-2026-08-17`: one macOS-Keychain-backed
+credential limited to Read crypto accounts, Read crypto products, and Read crypto quotes for the
+G3.2d cost study. This exception does not unlock the broader G5 gate. Never create a Robinhood
+credential with order permissions until G0-G8 have passed and G9 is explicitly approved.

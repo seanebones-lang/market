@@ -71,3 +71,7 @@ empirical cost or strategy evidence. G3.2d prospectively freezes a 30-day, 15-mi
 four-quantity sampling and offline-analysis protocol, including coverage, missingness, quantiles,
 daily-block uncertainty, and candidate cost-profile mapping. No dated production run plan or real
 observation exists, so this adds design readiness rather than empirical cost or strategy evidence.
+G3.2e now implements the explicitly authorized Keychain-backed, BTC-USD-only, four-resource GET
+client and one-cycle collector. Its offline tests do not contact Robinhood. Credential registration,
+visible read-action confirmation, the sanitized preflight, and a future dated run plan remain
+separate stopping points. Until the preflight succeeds, no account-observed cost exists.

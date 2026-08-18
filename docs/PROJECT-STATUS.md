@@ -27,7 +27,8 @@ guarantee future returns.
 | G1 | Complete | Five-year hourly BTC dataset is immutable, checksummed, and gap-segmented |
 | G2 | Complete | Backtest timing, costs, accounting, lifecycle, benchmarks, statistics, tests, and reproducibility pass |
 | G3 | Open | No strategy edge exists in evidence; EMA protocol 1.0 was retired before execution at G3.2b |
-| G4-G10 | Locked | Paper-runtime graduation, broker execution, and any capital stages remain unauthorized |
+| G3.2e exception | Implementation ready, preflight pending | Explicitly authorized account/product/quote GETs only; no order or capital authority |
+| G4-G10 | Locked | Paper-runtime graduation, general broker execution, and all capital stages remain unauthorized |
 
 The controlling details are in
 `docs/plans/2026-08-16-production-readiness-roadmap.md`.
@@ -74,6 +75,10 @@ disclosure.
   receive times, separated spread/depth/fee measures, redaction, and immutable verification
 - Prospective 30-day route-cost sampling protocol and offline corpus analyzer with complete-cycle
   coverage, fixed missingness rules, daily-block uncertainty, and content-addressed summaries
+- macOS-Keychain-backed Ed25519 credentials plus a fixed-origin, BTC-USD-only, four-resource GET
+  client with bounded safe-read retries and sanitized failures
+- one-cycle preflight and scheduled collector that validates all four frozen quantities before
+  persistence, claims slots before network contact, and never retries or backfills a claimed slot
 
 These capabilities make the system a trustworthy research instrument. They do not make it a
 validated trading system.
@@ -90,13 +95,14 @@ G3.3 must not resume until a prospective protocol 2.0 is approved. That protocol
 6. a strategy-agnostic experiment/evidence schema; and
 7. the role of the existing strategy-unseen audit window and a future confirmatory window.
 
-G3.2c now supplies the offline schema, derivation, redaction, and immutable evidence mechanics for
-that input. G3.2d now freezes the future sampling cadence, quantities, coverage, quantiles,
-uncertainty, and base/stress mapping before any real values exist. Its tests remain entirely
-synthetic and do not establish a current cost. No dated production run plan exists.
-The highest-value empirical input remains a separately authorized read-only Robinhood sampler for
-best bid/ask, quantity-aware estimated prices, fee tier, fee ratio, and estimated fee. No broker
-credential was created or used and no broker endpoint was contacted during G3.2b-G3.2d.
+G3.2c supplies the offline schema, derivation, redaction, and immutable evidence mechanics for that
+input. G3.2d freezes the future sampling cadence, quantities, coverage, quantiles, uncertainty, and
+base/stress mapping before any real values exist. G3.2e now implements the separately authorized
+read-only client and collector. Its implementation tests remain synthetic and do not establish a
+current cost. No credential has been registered, no broker endpoint has been contacted, and no
+dated production run plan exists at this checkpoint. The next operation is a locally prepared
+Keychain key, account-owner confirmation of the exact three read actions, and one sanitized
+preflight—not strategy evaluation or live execution.
 
 ## Common commands
 

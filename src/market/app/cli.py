@@ -172,6 +172,75 @@ def main(argv: list[str] | None = None) -> int:
     verify_cost_study_p.add_argument("--manifest", required=True)
     verify_cost_study_p.add_argument("--root", default=".")
 
+    prepare_rh_key_p = sub.add_parser(
+        "prepare-rh-readonly-key",
+        help="Generate a read-only Robinhood API signing key in macOS Keychain",
+        description=(
+            "Generate an Ed25519 key pair locally, store the private seed in macOS Keychain, "
+            "and print only the public key needed by Robinhood. Performs no network request."
+        ),
+    )
+    prepare_rh_key_p.add_argument("--credential-label", default="g3-cost-study-v1")
+
+    show_rh_key_p = sub.add_parser(
+        "show-rh-readonly-public-key",
+        help="Show the prepared public key and fingerprint; never displays the private key",
+    )
+    show_rh_key_p.add_argument("--credential-label", default="g3-cost-study-v1")
+
+    complete_rh_key_p = sub.add_parser(
+        "complete-rh-readonly-credential",
+        help="Prompt for a Robinhood-issued API key and store it in macOS Keychain",
+        description=(
+            "Read the API key from a hidden interactive prompt. The key is never accepted as a "
+            "command-line argument, environment variable, repository file, or log field."
+        ),
+    )
+    complete_rh_key_p.add_argument("--credential-label", default="g3-cost-study-v1")
+
+    check_rh_key_p = sub.add_parser(
+        "check-rh-readonly-credential",
+        help="Verify the local Keychain key pair without contacting Robinhood",
+    )
+    check_rh_key_p.add_argument("--credential-label", default="g3-cost-study-v1")
+
+    preflight_rh_cost_p = sub.add_parser(
+        "preflight-rh-v2-cost",
+        help="Run one explicitly authorized, sanitized Robinhood v2 read-only cost preflight",
+        description=(
+            "NETWORK READS: call only the four G3.2c GET resources, validate all frozen "
+            "quantities, and persist sanitized evidence. No orders, holdings changes, or trading."
+        ),
+    )
+    preflight_rh_cost_p.add_argument(
+        "--protocol",
+        default="config/research/rh-v2-cost-sampling-v1.json",
+    )
+    preflight_rh_cost_p.add_argument("--credential-label", default="g3-cost-study-v1")
+    preflight_rh_cost_p.add_argument("--authorization-reference", required=True)
+    preflight_rh_cost_p.add_argument(
+        "--out-dir",
+        default="data/research/rh-v2-cost-preflight",
+    )
+    preflight_rh_cost_p.add_argument("--root", default=".")
+
+    capture_rh_cost_p = sub.add_parser(
+        "capture-rh-v2-cost-cycle",
+        help="Capture exactly one currently due cycle under a frozen G3.2d run plan",
+        description=(
+            "NETWORK READS: claim and attempt one currently due 15-minute slot. A claimed slot "
+            "is never retried or backfilled. No order endpoint exists in this command."
+        ),
+    )
+    capture_rh_cost_p.add_argument(
+        "--protocol",
+        default="config/research/rh-v2-cost-sampling-v1.json",
+    )
+    capture_rh_cost_p.add_argument("--run-plan", required=True)
+    capture_rh_cost_p.add_argument("--credential-label", default="g3-cost-study-v1")
+    capture_rh_cost_p.add_argument("--out-dir", required=True)
+    capture_rh_cost_p.add_argument("--root", default=".")
+
     bt_p = sub.add_parser(
         "backtest",
         help="Backtest slow_trend on REAL candle data (CSV cache and/or fresh Coinbase fetch)",
@@ -393,6 +462,153 @@ def main(argv: list[str] | None = None) -> int:
             f"{summary.expected_cycles}"
         )
         console.print("network_contact=false execution=false strategy_result=false")
+        return 0
+
+    if args.cmd == "prepare-rh-readonly-key":
+        from market.execution.robinhood.auth import prepare_readonly_key
+
+        public = prepare_readonly_key(args.credential_label)
+        console.print("[green]prepared locally[/green] private_key_storage=macos_keychain")
+        console.print(f"credential_label={public.credential_label}")
+        console.print(f"public_key_base64={public.public_key_base64}")
+        console.print(f"public_key_fingerprint={public.public_key_fingerprint}")
+        console.print("network_contact=false api_key_present=false private_key_displayed=false")
+        return 0
+
+    if args.cmd == "show-rh-readonly-public-key":
+        from market.execution.robinhood.auth import get_prepared_public_key
+
+        public = get_prepared_public_key(args.credential_label)
+        console.print(f"credential_label={public.credential_label}")
+        console.print(f"public_key_base64={public.public_key_base64}")
+        console.print(f"public_key_fingerprint={public.public_key_fingerprint}")
+        console.print("private_key_displayed=false network_contact=false")
+        return 0
+
+    if args.cmd == "complete-rh-readonly-credential":
+        import getpass
+
+        from market.execution.robinhood.auth import complete_readonly_credential
+
+        api_key = getpass.getpass("Robinhood read-only API key: ")
+        public = complete_readonly_credential(api_key, args.credential_label)
+        console.print(
+            "[green]credential stored[/green] api_key_storage=macos_keychain "
+            "private_key_storage=macos_keychain"
+        )
+        console.print(f"credential_label={public.credential_label}")
+        console.print(f"public_key_fingerprint={public.public_key_fingerprint}")
+        console.print("api_key_displayed=false network_contact=false")
+        return 0
+
+    if args.cmd == "check-rh-readonly-credential":
+        from market.execution.robinhood.auth import (
+            load_readonly_credentials,
+            sign_robinhood_message,
+            verify_signature,
+        )
+
+        credentials = load_readonly_credentials(args.credential_label)
+        check_path = "/api/v2/crypto/trading/accounts/"
+        check_timestamp = 1_700_000_000
+        signature = sign_robinhood_message(
+            private_key_base64=credentials.private_key_base64,
+            api_key=credentials.api_key,
+            timestamp=check_timestamp,
+            path=check_path,
+            method="GET",
+        )
+        if not verify_signature(
+            public_key_base64=credentials.public_key_base64,
+            signature_base64=signature,
+            api_key=credentials.api_key,
+            timestamp=check_timestamp,
+            path=check_path,
+            method="GET",
+        ):
+            console.print("[red]credential key-pair check failed[/red]")
+            return 4
+        console.print("[green]credential key-pair verified locally[/green]")
+        console.print(f"credential_label={credentials.credential_label}")
+        console.print(f"public_key_fingerprint={credentials.public_key_fingerprint}")
+        console.print("network_contact=false api_key_displayed=false private_key_displayed=false")
+        return 0
+
+    if args.cmd == "preflight-rh-v2-cost":
+        from market.execution.robinhood.auth import load_readonly_credentials
+        from market.execution.robinhood.read_client import RobinhoodV2ReadClient
+        from market.research.cost_collector import (
+            CAPTURE_AUTHORIZATION_ID,
+            capture_readonly_cost_cycle,
+        )
+        from market.research.cost_sampling import load_cost_sampling_protocol
+
+        if args.authorization_reference != CAPTURE_AUTHORIZATION_ID:
+            console.print("[red]authorization reference is not approved for this collector[/red]")
+            return 3
+        protocol_path = Path(args.protocol)
+        if not protocol_path.is_absolute():
+            protocol_path = root / protocol_path
+        output_dir = Path(args.out_dir)
+        if not output_dir.is_absolute():
+            output_dir = root / output_dir
+        loaded_protocol = load_cost_sampling_protocol(protocol_path)
+        credentials = load_readonly_credentials(args.credential_label)
+        with RobinhoodV2ReadClient(credentials) as read_client:
+            cycle = capture_readonly_cost_cycle(read_client, loaded_protocol, output_dir)
+        console.print(
+            f"[green]read-only preflight captured[/green] symbol={cycle.symbol} "
+            f"quantities={len(cycle.quantities)} observations={len(cycle.observation_ids)}"
+        )
+        console.print(
+            "network_contact=true execution=false account_identifier_persisted=false "
+            "credential_persisted=false"
+        )
+        for captured_manifest_path in cycle.manifest_paths:
+            console.print(f"manifest={captured_manifest_path}")
+        return 0
+
+    if args.cmd == "capture-rh-v2-cost-cycle":
+        from datetime import datetime
+
+        from market.execution.robinhood.auth import load_readonly_credentials
+        from market.execution.robinhood.read_client import RobinhoodV2ReadClient
+        from market.research.cost_collector import capture_due_scheduled_cycle
+        from market.research.cost_sampling import (
+            load_cost_sampling_protocol,
+            load_cost_sampling_run_plan,
+        )
+
+        protocol_path = Path(args.protocol)
+        if not protocol_path.is_absolute():
+            protocol_path = root / protocol_path
+        run_plan_path = Path(args.run_plan)
+        if not run_plan_path.is_absolute():
+            run_plan_path = root / run_plan_path
+        output_dir = Path(args.out_dir)
+        if not output_dir.is_absolute():
+            output_dir = root / output_dir
+        loaded_protocol = load_cost_sampling_protocol(protocol_path)
+        loaded_plan = load_cost_sampling_run_plan(run_plan_path, loaded_protocol)
+        credentials = load_readonly_credentials(args.credential_label)
+        with RobinhoodV2ReadClient(credentials) as read_client:
+            captured = capture_due_scheduled_cycle(
+                read_client,
+                loaded_protocol,
+                loaded_plan,
+                output_dir,
+                now=datetime.now(tz=UTC),
+            )
+        console.print(
+            f"[green]scheduled read-only cycle captured[/green] "
+            f"slot={captured.scheduled_slot.isoformat()} "
+            f"observations={len(captured.cycle.observation_ids)}"
+        )
+        console.print(
+            "network_contact=true execution=false account_identifier_persisted=false "
+            "credential_persisted=false same_slot_retry=false"
+        )
+        console.print(f"control={captured.completed_path}")
         return 0
 
     if args.cmd == "fetch-candles":
