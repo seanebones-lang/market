@@ -408,6 +408,16 @@ or strategy output was shared or retained. G3.2e remains blocked, the `ask >= bi
 timestamp treatment remain unchanged, and no new preflight or diagnostic authority exists. See
 `docs/evidence/G3.2e-support-2026-08-17.md`.
 
+**Vendor-dependency timebox (2026-08-18):** ADR 0004 sets `2026-08-31T17:00:00-05:00` (close of
+business in `America/Chicago`) as the planning deadline for an authoritative, technically useful
+response to case `021436592`. A missing or inconclusive response at that point is classified as
+non-responsive for planning purposes only: G3.2e remains blocked, the frozen resolution record
+remains unchanged, and no preflight, diagnostic, network, order, or capital authority is created.
+The next admissible step would be an offline review of a separate, append-only, pilot-informed
+characterization protocol. All future protocols must apply
+`docs/research/PROTOCOL-FREEZE-CHECKLIST.md`, including an explicit acceptance-rule feasibility
+envelope before freeze.
+
 ### Minimum graduation standard
 
 - Positive aggregate walk-forward out-of-sample net expectancy after realistic costs.

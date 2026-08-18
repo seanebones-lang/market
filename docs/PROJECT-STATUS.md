@@ -1,6 +1,6 @@
 # Market BTC Research Platform — Project Status
 
-- **Updated:** 2026-08-17
+- **Updated:** 2026-08-18
 - **Overall status:** Research platform only; no demonstrated trading edge
 - **Capital authorization:** None; live order submission remains hard-disabled
 
@@ -112,7 +112,11 @@ Authenticated support case `021436592` is now escalated to Robinhood's back-end 
 frontline Crypto support stated that it could not clarify endpoint semantics beyond the public
 documentation. The case update will arrive by email. Until that response is classified and
 recorded, the existing invariant, timestamp treatment, network prohibition, and blocked status
-remain unchanged. See `docs/evidence/G3.2e-support-2026-08-17.md`.
+remain unchanged. ADR 0004 sets `2026-08-31T17:00:00-05:00` (close of business in
+`America/Chicago`) as the planning deadline for a useful response. Non-response opens an offline
+design review only and creates no new network or diagnostic authority. See
+`docs/evidence/G3.2e-support-2026-08-17.md` and
+`docs/decisions/0004-timebox-g3.2e-vendor-dependency.md`.
 
 ## Common commands
 

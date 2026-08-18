@@ -116,6 +116,8 @@ enable order submission.
 - `docs/evidence/G3.2e-support-2026-08-17.md` — sanitized support case and back-end escalation record
 - `docs/authorizations/2026-08-17-g3.2e-robinhood-read-only.md` — scoped, identifier-free authority
 - `docs/decisions/0003-retire-g3-ema-protocol-v1-before-execution.md` — protocol 1.0 disposition
+- `docs/decisions/0004-timebox-g3.2e-vendor-dependency.md` — vendor-response planning deadline
+- `docs/research/PROTOCOL-FREEZE-CHECKLIST.md` — prospective acceptance-rule feasibility control
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan
 - `docs/plans/2026-08-04-market-btc-autotrader.md` — implementation plan
 - `docs/RISK.md` — hard risk rails before any live mode

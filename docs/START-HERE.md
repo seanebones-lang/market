@@ -77,3 +77,9 @@ Nothing graduates to `live` without passing G0-G8 in
     update and record it before considering another ordinary preflight.
 11. Follow `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md`. Its fallback diagnostic remains
     unimplemented and has no network authority until a new authorization is recorded.
+12. ADR 0004 timeboxes the vendor dependency through `2026-08-31T17:00:00-05:00` (close of
+    business in `America/Chicago`). Non-response then permits an offline design review only; it
+    does not authorize the fallback, another preflight, or any broker action.
+13. Apply `docs/research/PROTOCOL-FREEZE-CHECKLIST.md` before freezing any new statistical,
+    measurement, compatibility, operational, or safety protocol. Document the full acceptance
+    rule's feasible passing range and its overlap with plausible target behavior.
