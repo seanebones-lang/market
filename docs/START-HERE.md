@@ -72,6 +72,8 @@ Nothing graduates to `live` without passing G0-G8 in
    best-price row whose buy ask is below its sell bid. Do not swap labels, relax the invariant, or
    start the 30-day window until the contradiction is resolved, a fresh sanitized preflight passes,
    and a future run plan is frozen.
-10. Follow `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md`: seek authoritative Robinhood
-    clarification first. Its fallback diagnostic has no network authority until a new authorization
-    is recorded.
+10. Robinhood support case `021436592` is escalated to the back-end team for the best-price schema
+    contradiction. Frontline support could not resolve the endpoint semantics; wait for the email
+    update and record it before considering another ordinary preflight.
+11. Follow `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md`. Its fallback diagnostic remains
+    unimplemented and has no network authority until a new authorization is recorded.

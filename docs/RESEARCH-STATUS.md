@@ -79,4 +79,8 @@ repeatedly violated the published sell-bid/buy-ask ordering invariant. The times
 field is now strictly validated and excluded from derivation; the price-ordering rule was not
 relaxed. Until a preflight succeeds, no account-observed cost exists and no dated run may start.
 The next-step resolution plan freezes a value-free support request and, only if separately
-authorized, a two-complete-UTC-day sign-only diagnostic with no prices, retries, or backfill.
+authorized, a two-complete-UTC-day sign-only diagnostic with no prices, retries, or backfill. The
+support request is now authenticated Robinhood case `021436592`. Frontline Crypto support did not
+resolve the field semantics and escalated the case to its back-end team for an email update. The
+virtual assistant's provisional interpretation is not admitted as authoritative evidence, G3.2e
+remains blocked, and the fallback diagnostic remains unauthorized.

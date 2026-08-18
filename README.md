@@ -24,8 +24,10 @@ rules. Under an identifier-free, read-only authorization, G3.2e now implements t
 GET-only collector needed to run one sanitized preflight. A least-privilege credential is now
 registered and locally verified, but the live preflight fails closed because Robinhood's
 best-price row has repeatedly reported a buy `ask` below its sell `bid`, contrary to Robinhood's
-published v2 field definitions. No cost evidence was written, no empirical cost is admitted, and
-no dated collection run has started. G3.3 is paused pending a prospective protocol 2.0.
+published v2 field definitions. Authenticated support case `021436592` is now escalated to
+Robinhood's back-end team; frontline support could not resolve the endpoint semantics, and the
+project is awaiting an email update. No cost evidence was written, no empirical cost is admitted,
+and no dated collection run has started. G3.3 is paused pending a prospective protocol 2.0.
 See `docs/PROJECT-STATUS.md`, `docs/RESEARCH-STATUS.md`, and the production-readiness roadmap.
 
 ```bash
@@ -111,6 +113,7 @@ enable order submission.
 - `docs/research/G3.2e-READ-ONLY-COLLECTOR-CONTRACT.md` — authorized GET-only client and preflight
 - `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md` — frozen support/diagnostic resolution plan
 - `docs/evidence/G3.2e-2026-08-17.md` — offline signing, transport, collector, and safety evidence
+- `docs/evidence/G3.2e-support-2026-08-17.md` — sanitized support case and back-end escalation record
 - `docs/authorizations/2026-08-17-g3.2e-robinhood-read-only.md` — scoped, identifier-free authority
 - `docs/decisions/0003-retire-g3-ema-protocol-v1-before-execution.md` — protocol 1.0 disposition
 - `docs/plans/2026-08-16-production-readiness-roadmap.md` — controlling gate plan

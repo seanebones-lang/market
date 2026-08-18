@@ -397,6 +397,17 @@ requires a new authorization and admits no prices, retries, backfill, cost concl
 output. Another ordinary preflight and the production run plan remain prohibited until the
 contradiction is resolved.
 
+**Support-escalation record (2026-08-17):** The value-free support request was submitted through
+Robinhood's authenticated Crypto support channel. The virtual assistant returned a provisional
+interpretation consistent with the project's fail-closed rule, but that response is not admitted
+as authoritative research evidence. A human Crypto agent stated that frontline support cannot
+clarify endpoint semantics beyond the public documentation and escalated case `021436592` to
+Robinhood's back-end team for an email update, estimated at 24–48 business hours or longer without
+guarantee. No screenshot, response body, price, account identifier, credential, signature, order,
+or strategy output was shared or retained. G3.2e remains blocked, the `ask >= bid` invariant and
+timestamp treatment remain unchanged, and no new preflight or diagnostic authority exists. See
+`docs/evidence/G3.2e-support-2026-08-17.md`.
+
 ### Minimum graduation standard
 
 - Positive aggregate walk-forward out-of-sample net expectancy after realistic costs.
