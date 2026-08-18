@@ -114,6 +114,7 @@ enable order submission.
 - `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md` — frozen support/diagnostic resolution plan
 - `docs/evidence/G3.2e-2026-08-17.md` — offline signing, transport, collector, and safety evidence
 - `docs/evidence/G3.2e-support-2026-08-17.md` — sanitized support case and back-end escalation record
+- `docs/evidence/G3.2e-support-follow-up-2026-08-18.md` — case and email-status follow-up evidence
 - `docs/authorizations/2026-08-17-g3.2e-robinhood-read-only.md` — scoped, identifier-free authority
 - `docs/decisions/0003-retire-g3-ema-protocol-v1-before-execution.md` — protocol 1.0 disposition
 - `docs/decisions/0004-timebox-g3.2e-vendor-dependency.md` — vendor-response planning deadline

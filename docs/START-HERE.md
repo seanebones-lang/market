@@ -83,3 +83,7 @@ Nothing graduates to `live` without passing G0-G8 in
 13. Apply `docs/research/PROTOCOL-FREEZE-CHECKLIST.md` before freezing any new statistical,
     measurement, compatibility, operational, or safety protocol. Document the full acceptance
     rule's feasible passing range and its overlap with plausible target behavior.
+14. Two human follow-ups confirm that case `021436592` remains active under back-end review and
+    will use email for future updates. No acknowledgment email was received or confirmed, and no
+    technical semantics answer exists. Preserve this distinction; case continuity is not endpoint
+    resolution.

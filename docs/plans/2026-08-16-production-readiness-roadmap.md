@@ -418,6 +418,15 @@ characterization protocol. All future protocols must apply
 `docs/research/PROTOCOL-FREEZE-CHECKLIST.md`, including an explicit acceptance-rule feasibility
 envelope before freeze.
 
+**Support follow-up record (2026-08-18):** Two additional authenticated human-support contacts
+confirmed that case `021436592` exists, remains under back-end review, and will retain future
+correspondence in one case with updates sent by email. Neither contact supplied technical endpoint
+semantics. After the account owner reported receiving no email acknowledgment, support confirmed
+future email contact but did not state whether an acknowledgment had been generated, did not
+resend one, and did not provide an expected sender or subject. This strengthens case-continuity
+evidence only; G3.2e remains blocked and no protocol, network, diagnostic, order, or capital
+authority changes. See `docs/evidence/G3.2e-support-follow-up-2026-08-18.md`.
+
 ### Minimum graduation standard
 
 - Positive aggregate walk-forward out-of-sample net expectancy after realistic costs.

@@ -116,7 +116,11 @@ remain unchanged. ADR 0004 sets `2026-08-31T17:00:00-05:00` (close of business i
 `America/Chicago`) as the planning deadline for a useful response. Non-response opens an offline
 design review only and creates no new network or diagnostic authority. See
 `docs/evidence/G3.2e-support-2026-08-17.md` and
-`docs/decisions/0004-timebox-g3.2e-vendor-dependency.md`.
+`docs/decisions/0004-timebox-g3.2e-vendor-dependency.md`. Two 2026-08-18 human-support follow-ups
+confirmed that the same case remains active under back-end review and that future updates will be
+sent by email. No acknowledgment email was received; support did not confirm that one was
+generated or resend it. No technical semantics answer was provided. See
+`docs/evidence/G3.2e-support-follow-up-2026-08-18.md`.
 
 ## Common commands
 
