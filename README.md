@@ -109,6 +109,7 @@ enable order submission.
 - `docs/research/G3.2d-EXECUTION-COST-SAMPLING-PROTOCOL.md` — prospective 30-day cost-study design
 - `docs/evidence/G3.2d-2026-08-17.md` — offline analyzer and failure-path evidence
 - `docs/research/G3.2e-READ-ONLY-COLLECTOR-CONTRACT.md` — authorized GET-only client and preflight
+- `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md` — frozen support/diagnostic resolution plan
 - `docs/evidence/G3.2e-2026-08-17.md` — offline signing, transport, collector, and safety evidence
 - `docs/authorizations/2026-08-17-g3.2e-robinhood-read-only.md` — scoped, identifier-free authority
 - `docs/decisions/0003-retire-g3-ema-protocol-v1-before-execution.md` — protocol 1.0 disposition

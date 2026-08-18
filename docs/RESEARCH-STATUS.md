@@ -78,3 +78,5 @@ evidence writes because the live best-price row first added a known timestamp fi
 repeatedly violated the published sell-bid/buy-ask ordering invariant. The timestamp compatibility
 field is now strictly validated and excluded from derivation; the price-ordering rule was not
 relaxed. Until a preflight succeeds, no account-observed cost exists and no dated run may start.
+The next-step resolution plan freezes a value-free support request and, only if separately
+authorized, a two-complete-UTC-day sign-only diagnostic with no prices, retries, or backfill.

@@ -388,6 +388,15 @@ so fields were not swapped and the invariant was not relaxed. See
 `docs/evidence/G3.2e-2026-08-17.md`. G3.2e remains open until the venue/API contradiction is
 resolved and a sanitized preflight passes; G3.3 stays paused and the broader G5 gate stays locked.
 
+**Blocker-resolution record (2026-08-17):**
+`docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md` freezes the next admissible decision path
+before more Robinhood information is observed. The primary path is a value-free request for
+authoritative field and crossed-row semantics. A fallback two-complete-UTC-day, 192-slot,
+best-price sign-only diagnostic is specified but has no implementation or network authority; it
+requires a new authorization and admits no prices, retries, backfill, cost conclusion, or strategy
+output. Another ordinary preflight and the production run plan remain prohibited until the
+contradiction is resolved.
+
 ### Minimum graduation standard
 
 - Positive aggregate walk-forward out-of-sample net expectancy after realistic costs.

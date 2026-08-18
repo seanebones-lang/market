@@ -72,3 +72,6 @@ Nothing graduates to `live` without passing G0-G8 in
    best-price row whose buy ask is below its sell bid. Do not swap labels, relax the invariant, or
    start the 30-day window until the contradiction is resolved, a fresh sanitized preflight passes,
    and a future run plan is frozen.
+10. Follow `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md`: seek authoritative Robinhood
+    clarification first. Its fallback diagnostic has no network authority until a new authorization
+    is recorded.

@@ -105,6 +105,9 @@ best-price responses reported buy `ask < bid` sell, contrary to Robinhood's offi
 definitions. No price value was logged, no empirical cost is admitted, and no dated production run
 plan exists. The next operation is resolution of that venue/API data-quality contradiction followed
 by a fresh sanitized preflight—not a relaxed invariant, strategy evaluation, or live execution.
+The frozen resolution package in
+`docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md` prioritizes an authoritative Robinhood
+clarification and defines a sign-only fallback that remains unimplemented and unauthorized.
 
 ## Common commands
 
