@@ -87,3 +87,7 @@ Nothing graduates to `live` without passing G0-G8 in
     will use email for future updates. No acknowledgment email was received or confirmed, and no
     technical semantics answer exists. Preserve this distinction; case continuity is not endpoint
     resolution.
+15. The 2026-08-19 back-end-attributed email answered none of the five frozen endpoint questions
+    and is technically non-responsive. Do not treat its public-documentation referral as semantics
+    evidence or permission for another preflight. ADR 0004's formal planning branch remains dated
+    `2026-08-31T17:00:00-05:00` unless a later useful response arrives.

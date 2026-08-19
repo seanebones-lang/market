@@ -83,4 +83,7 @@ authorized, a two-complete-UTC-day sign-only diagnostic with no prices, retries,
 support request is now authenticated Robinhood case `021436592`. Frontline Crypto support did not
 resolve the field semantics and escalated the case to its back-end team for an email update. The
 virtual assistant's provisional interpretation is not admitted as authoritative evidence, G3.2e
-remains blocked, and the fallback diagnostic remains unauthorized.
+remains blocked, and the fallback diagnostic remains unauthorized. The case-associated
+2026-08-19 email stated that back-end feedback had been received but redirected the project to
+public documentation and general outside research without answering any frozen endpoint-contract
+question. It is technically non-responsive and changes no interpretation, gate, or authority.

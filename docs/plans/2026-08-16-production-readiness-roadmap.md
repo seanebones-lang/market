@@ -427,6 +427,16 @@ resend one, and did not provide an expected sender or subject. This strengthens 
 evidence only; G3.2e remains blocked and no protocol, network, diagnostic, order, or capital
 authority changes. See `docs/evidence/G3.2e-support-follow-up-2026-08-18.md`.
 
+**Back-end-attributed response record (2026-08-19):** The account owner supplied a case-associated
+Robinhood Crypto Support email in which the agent stated that feedback had been received from the
+back-end team. The response redirected the project to public documentation and general outside
+research while answering none of the five frozen questions about field directions, crossed rows,
+the undocumented timestamp, actionable-row coherence, or client treatment. It is admitted as
+authoritative evidence that the vendor response was technically non-responsive, not as endpoint
+semantics. ADR 0004's formal no-useful-response planning branch remains dated
+`2026-08-31T17:00:00-05:00`; no preflight, diagnostic, network, order, or capital authority is
+created. See `docs/evidence/G3.2e-backend-response-2026-08-19.md`.
+
 ### Minimum graduation standard
 
 - Positive aggregate walk-forward out-of-sample net expectancy after realistic costs.

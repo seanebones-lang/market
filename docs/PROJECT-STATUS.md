@@ -1,6 +1,6 @@
 # Market BTC Research Platform — Project Status
 
-- **Updated:** 2026-08-18
+- **Updated:** 2026-08-19
 - **Overall status:** Research platform only; no demonstrated trading edge
 - **Capital authorization:** None; live order submission remains hard-disabled
 
@@ -27,7 +27,7 @@ guarantee future returns.
 | G1 | Complete | Five-year hourly BTC dataset is immutable, checksummed, and gap-segmented |
 | G2 | Complete | Backtest timing, costs, accounting, lifecycle, benchmarks, statistics, tests, and reproducibility pass |
 | G3 | Open | No strategy edge exists in evidence; EMA protocol 1.0 was retired before execution at G3.2b |
-| G3.2e exception | Preflight blocked; support escalated | Authorized account/product/quote GETs only; case `021436592` awaits a Robinhood back-end email response; no order or capital authority |
+| G3.2e exception | Preflight blocked; vendor response non-responsive | Case `021436592` produced no endpoint-semantics answer; no new network, order, or capital authority |
 | G4-G10 | Locked | Paper-runtime graduation, general broker execution, and all capital stages remain unauthorized |
 
 The controlling details are in
@@ -108,11 +108,13 @@ by a fresh sanitized preflight—not a relaxed invariant, strategy evaluation, o
 The frozen resolution package in
 `docs/research/G3.2e-BEST-PRICE-COHERENCE-RESOLUTION.md` prioritizes an authoritative Robinhood
 clarification and defines a sign-only fallback that remains unimplemented and unauthorized.
-Authenticated support case `021436592` is now escalated to Robinhood's back-end team after
-frontline Crypto support stated that it could not clarify endpoint semantics beyond the public
-documentation. The case update will arrive by email. Until that response is classified and
-recorded, the existing invariant, timestamp treatment, network prohibition, and blocked status
-remain unchanged. ADR 0004 sets `2026-08-31T17:00:00-05:00` (close of business in
+Authenticated support case `021436592` was escalated to Robinhood's back-end team after frontline
+Crypto support stated that it could not clarify endpoint semantics beyond the public
+documentation. A case-associated email received on 2026-08-19 stated that back-end feedback was
+available but redirected the project to public documentation and general outside research without
+answering any frozen endpoint-contract question. It is classified technically non-responsive, so
+the existing invariant, timestamp treatment, network prohibition, and blocked status remain
+unchanged. ADR 0004 sets `2026-08-31T17:00:00-05:00` (close of business in
 `America/Chicago`) as the planning deadline for a useful response. Non-response opens an offline
 design review only and creates no new network or diagnostic authority. See
 `docs/evidence/G3.2e-support-2026-08-17.md` and
@@ -120,7 +122,8 @@ design review only and creates no new network or diagnostic authority. See
 confirmed that the same case remains active under back-end review and that future updates will be
 sent by email. No acknowledgment email was received; support did not confirm that one was
 generated or resend it. No technical semantics answer was provided. See
-`docs/evidence/G3.2e-support-follow-up-2026-08-18.md`.
+`docs/evidence/G3.2e-support-follow-up-2026-08-18.md` and
+`docs/evidence/G3.2e-backend-response-2026-08-19.md`.
 
 ## Common commands
 
