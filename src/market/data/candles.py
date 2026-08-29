@@ -177,6 +177,10 @@ def _parse_coinbase_row(
         raise ValueError(f"invalid Coinbase candle row length: {len(row)}")
     # Coinbase Exchange schema: [time, low, high, open, close, volume].
     ts = datetime.fromtimestamp(int(row[0]), tz=UTC)
+    close_time = ts + timedelta(seconds=timeframe.seconds)
+    # For historical closed candles, close_confirmed_at should be the candle's close time
+    # (or later). Using retrieved_at here can violate close_confirmed_at >= close_time
+    # if retrieved_at is before the candle's actual close (e.g., near boundary).
     return Candle(
         ts=ts,
         timeframe=timeframe,
@@ -187,7 +191,7 @@ def _parse_coinbase_row(
         close=D(str(row[4])),
         volume=D(str(row[5])),
         received_at=retrieved_at,
-        close_confirmed_at=retrieved_at,
+        close_confirmed_at=close_time,
         is_closed=True,
     )
 

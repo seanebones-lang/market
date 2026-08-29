@@ -130,7 +130,8 @@ class PortfolioAccount:
             - self.cumulative_fees_usd
         )
         residual = marked_equity - explained_equity
-        return Decimal("0") if residual == 0 else residual
+        # Tolerance for Decimal arithmetic precision (e.g., division in cost basis allocation)
+        return Decimal("0") if abs(residual) < Decimal("1E-20") else residual
 
     def apply_fill(self, fill: Fill, *, event_sequence: int) -> PortfolioJournalEntry:
         """Apply one immutable fill transition or fail without mutating account state."""

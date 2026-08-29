@@ -412,7 +412,8 @@ def _invested_benchmark(
         )
         account.apply_fill(sell, event_sequence=event_sequence)
         fills.append(sell)
-        if equity_curve[-1].net_liquidation_value_usd != account.cash_usd:
+        # Tolerance for Decimal arithmetic precision in terminal liquidation reconciliation
+        if abs(equity_curve[-1].net_liquidation_value_usd - account.cash_usd) >= Decimal("1E-20"):
             raise BenchmarkAnalysisError(
                 "benchmark terminal liquidation does not match prior net liquidation value"
             )
